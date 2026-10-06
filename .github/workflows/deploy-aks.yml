@@ -1,0 +1,42 @@
+# Manual deployment to Azure Kubernetes Service.
+# Requires the cluster to exist (infra/azure/deploy.sh) and these repository settings:
+#   secrets:   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID  (federated credential / OIDC)
+#   variables: ACR_NAME, AKS_NAME, RESOURCE_GROUP
+name: Deploy to AKS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Build and push images
+        run: |
+          az acr build --registry "${{ vars.ACR_NAME }}" --image "disease-surveillance/backend:$IMAGE_TAG"   backend
+          az acr build --registry "${{ vars.ACR_NAME }}" --image "disease-surveillance/dashboard:$IMAGE_TAG" frontend
+          az acr build --registry "${{ vars.ACR_NAME }}" --image "disease-surveillance/flink:$IMAGE_TAG"     flink
+      - uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ vars.RESOURCE_GROUP }}
+          cluster-name: ${{ vars.AKS_NAME }}
+      - name: Apply manifests
+        run: |
+          ACR_LOGIN_SERVER="$(az acr show --name "${{ vars.ACR_NAME }}" --query loginServer -o tsv)"
+          kubectl kustomize k8s/overlays/azure \
+            | sed -e "s|ACR_LOGIN_SERVER|${ACR_LOGIN_SERVER}|g" -e "s|IMAGE_TAG|${IMAGE_TAG}|g" \
+            | kubectl apply -f -
+          kubectl -n surveillance rollout status deployment/api --timeout=5m
+          kubectl -n surveillance rollout status deployment/dashboard --timeout=5m
