@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Data and models are rebuilt by the pipeline
+backend/data/
+backend/models/
+
+.env
+.DS_Store

@@ -1,0 +1,32 @@
+# Azure Kubernetes Service. Applied by infra/azure/deploy.sh, which replaces the
+# ACR_LOGIN_SERVER and IMAGE_TAG placeholders and creates the "surveillance-db" Secret.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: surveillance
+
+resources:
+  - ../../base
+
+images:
+  - name: disease-surveillance/backend
+    newName: ACR_LOGIN_SERVER/disease-surveillance/backend
+    newTag: IMAGE_TAG
+  - name: disease-surveillance/dashboard
+    newName: ACR_LOGIN_SERVER/disease-surveillance/dashboard
+    newTag: IMAGE_TAG
+  - name: disease-surveillance/flink
+    newName: ACR_LOGIN_SERVER/disease-surveillance/flink
+    newTag: IMAGE_TAG
+
+patches:
+  # AKS application-routing add-on (managed NGINX ingress)
+  - target: { kind: Ingress, name: dashboard }
+    patch: |-
+      - { op: replace, path: /spec/ingressClassName, value: webapprouting.kubernetes.azure.com }
+  # Azure managed disks (CSI) for the stateful services
+  - target: { kind: StatefulSet, name: postgres }
+    patch: |-
+      - { op: add, path: /spec/volumeClaimTemplates/0/spec/storageClassName, value: managed-csi }
+  - target: { kind: StatefulSet, name: redpanda }
+    patch: |-
+      - { op: add, path: /spec/volumeClaimTemplates/0/spec/storageClassName, value: managed-csi }

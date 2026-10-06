@@ -1,0 +1,47 @@
+# Replays historical reports into Kafka as a simulated live feed (see backend/stream/producer.py).
+# In a real deployment this is where the connectors to national reporting systems would run.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stream-replay
+  labels: { app: stream-replay }
+spec:
+  backoffLimit: 4
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels: { app: stream-replay, surveillance/db-client: "true" }
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: wait-for-data           # needs the case reports loaded and the Flink job consuming
+          image: postgres:16-alpine
+          command: ["sh", "-c"]
+          args:
+            - until [ "$(psql -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc 'SELECT count(*) FROM model_runs' 2>/dev/null)" -ge 1 ] 2>/dev/null; do echo waiting for the pipeline; sleep 10; done
+          envFrom:
+            - configMapRef: { name: surveillance-config }
+          env:
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: surveillance-db, key: POSTGRES_USER } }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: surveillance-db, key: POSTGRES_PASSWORD } }
+        - name: wait-for-flink-job      # start publishing only once the stream job is consuming
+          image: disease-surveillance/backend
+          command: ["sh", "-c"]
+          args:
+            - until curl -fsS "http://$FLINK_JOBMANAGER_HOST:8081/jobs/overview" | grep -Eq '"name":"outbreak-detection"[^}]*"state":"RUNNING"'; do echo waiting for the Flink job; sleep 5; done
+          envFrom:
+            - configMapRef: { name: surveillance-config }
+      containers:
+        - name: producer
+          image: disease-surveillance/backend
+          command: ["python", "-m", "stream.producer"]
+          envFrom:
+            - configMapRef: { name: surveillance-config }
+          env:
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: surveillance-db, key: DATABASE_URL } }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 512Mi }

@@ -1,0 +1,80 @@
+# Local cluster (Docker Desktop Kubernetes, kind or minikube) using the images built by
+# `docker compose build`.  Apply with:  kubectl apply -k k8s/overlays/local
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: surveillance
+
+resources:
+  - ../../base
+
+images:
+  - name: disease-surveillance/backend
+    newTag: local
+  - name: disease-surveillance/dashboard
+    newTag: local
+  - name: disease-surveillance/flink
+    newTag: local
+
+# Development credentials only - never reuse outside a local cluster.
+secretGenerator:
+  - name: surveillance-db
+    literals:
+      - POSTGRES_USER=surveillance
+      - POSTGRES_PASSWORD=surveillance
+      - DATABASE_URL=postgresql+psycopg2://surveillance:surveillance@postgres:5432/disease_surveillance
+      - JDBC_URL=jdbc:postgresql://postgres:5432/disease_surveillance
+generatorOptions:
+  disableNameSuffixHash: true
+
+patches:
+  # a laptop cluster has ~4 GB in total: request what the services actually use, not production headroom
+  - target: { kind: StatefulSet, name: postgres }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/containers/0/resources/requests, value: { cpu: 50m, memory: 192Mi } }
+  - target: { kind: StatefulSet, name: redpanda }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/containers/0/resources/requests, value: { cpu: 50m, memory: 256Mi } }
+  - target: { kind: Deployment, name: flink-jobmanager }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/containers/0/resources/requests, value: { cpu: 50m, memory: 400Mi } }
+  - target: { kind: Deployment, name: flink-taskmanager }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/containers/0/resources/requests, value: { cpu: 50m, memory: 600Mi } }
+  - target: { kind: Job, name: pipeline-bootstrap }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/containers/0/resources/requests, value: { cpu: 100m, memory: 512Mi } }
+  - target: { kind: Job, name: flink-job-submit }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/containers/0/resources/requests, value: { cpu: 50m, memory: 256Mi } }
+  - target: { kind: Deployment, name: api }
+    patch: |-
+      - { op: replace, path: /spec/template/spec/containers/0/resources/requests, value: { cpu: 50m, memory: 128Mi } }
+  # one replica of each stateless service is plenty on a laptop
+  - target: { kind: Deployment, name: api }
+    patch: |-
+      - { op: replace, path: /spec/replicas, value: 1 }
+  - target: { kind: Deployment, name: dashboard }
+    patch: |-
+      - { op: replace, path: /spec/replicas, value: 1 }
+  - target: { kind: HorizontalPodAutoscaler, name: api }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 1 }
+  - target: { kind: PodDisruptionBudget, name: api }
+    patch: |-
+      $patch: delete
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: api
+  # no ingress controller locally: expose the dashboard on http://localhost:8080 instead
+  - target: { kind: Ingress, name: dashboard }
+    patch: |-
+      $patch: delete
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: dashboard
+  - target: { kind: Service, name: dashboard }
+    patch: |-
+      - { op: add, path: /spec/type, value: LoadBalancer }
+      - { op: replace, path: /spec/ports/0/port, value: 8080 }

@@ -1,0 +1,17 @@
+# Global Disease Surveillance - backend (API, data pipeline, stream producer)
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic-settings>=2.4
+SQLAlchemy>=2.0
+psycopg2-binary>=2.9
+pandas>=2.2
+numpy>=1.26
+geopandas>=1.0
+shapely>=2.0
+pycountry>=24.6
+requests>=2.31
+scikit-learn>=1.4
+# the default x86-64 Linux wheel pulls in ~300 MB of CUDA libraries; the CPU build is enough here
+xgboost-cpu>=2.1; platform_system == "Linux" and platform_machine == "x86_64"
+xgboost>=2.1; platform_system != "Linux" or platform_machine != "x86_64"
+kafka-python>=2.1

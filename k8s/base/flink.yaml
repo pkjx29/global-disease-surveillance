@@ -1,0 +1,133 @@
+# Apache Flink session cluster (one JobManager, one TaskManager) plus the Job that submits the SQL pipeline.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flink-config
+data:
+  jobmanager: |
+    jobmanager.rpc.address: flink-jobmanager
+    jobmanager.memory.process.size: 700m
+    rest.address: flink-jobmanager
+  taskmanager: |
+    jobmanager.rpc.address: flink-jobmanager
+    taskmanager.memory.process.size: 1024m
+    taskmanager.numberOfTaskSlots: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-jobmanager
+  labels: { app: flink, component: jobmanager }
+spec:
+  selector: { app: flink, component: jobmanager }
+  ports:
+    - { name: rpc, port: 6123 }
+    - { name: blob, port: 6124 }
+    - { name: ui, port: 8081 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-jobmanager
+  labels: { app: flink, component: jobmanager }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: flink, component: jobmanager }
+  template:
+    metadata:
+      labels: { app: flink, component: jobmanager }
+    spec:
+      containers:
+        - name: jobmanager
+          image: disease-surveillance/flink
+          args: ["jobmanager"]
+          env:
+            - name: FLINK_PROPERTIES
+              valueFrom: { configMapKeyRef: { name: flink-config, key: jobmanager } }
+          ports:
+            - { name: rpc, containerPort: 6123 }
+            - { name: blob, containerPort: 6124 }
+            - { name: ui, containerPort: 8081 }
+          readinessProbe:
+            httpGet: { path: /overview, port: ui }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 200m, memory: 768Mi }
+            limits: { memory: 900Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-taskmanager
+  labels: { app: flink, component: taskmanager }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: flink, component: taskmanager }
+  template:
+    metadata:
+      labels: { app: flink, component: taskmanager, surveillance/db-client: "true" }
+    spec:
+      containers:
+        - name: taskmanager
+          image: disease-surveillance/flink
+          args: ["taskmanager"]
+          env:
+            - name: FLINK_PROPERTIES
+              valueFrom: { configMapKeyRef: { name: flink-config, key: taskmanager } }
+          resources:
+            requests: { cpu: 300m, memory: 1100Mi }
+            limits: { memory: 1300Mi }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flink-job-submit
+  labels: { app: flink, component: job-submit }
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels: { app: flink, component: job-submit, surveillance/db-client: "true" }
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: create-topic
+          image: redpandadata/redpanda:v24.2.7
+          command: ["sh", "-c"]
+          args:
+            - until rpk topic list --brokers "$KAFKA_BOOTSTRAP_SERVERS" >/dev/null 2>&1; do echo waiting for redpanda; sleep 5; done;
+              rpk topic create "$KAFKA_TOPIC" --partitions 1 --replicas 1 --brokers "$KAFKA_BOOTSTRAP_SERVERS" || rpk topic describe "$KAFKA_TOPIC" --brokers "$KAFKA_BOOTSTRAP_SERVERS"
+          envFrom:
+            - configMapRef: { name: surveillance-config }
+        - name: wait-for-schema         # the sink tables are created by the pipeline job
+          image: postgres:16-alpine
+          command: ["sh", "-c"]
+          args:
+            - until psql -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c 'SELECT 1 FROM stream_alerts LIMIT 1' >/dev/null 2>&1; do echo waiting for schema; sleep 5; done
+          envFrom:
+            - configMapRef: { name: surveillance-config }
+          env:
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: surveillance-db, key: POSTGRES_USER } }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: surveillance-db, key: POSTGRES_PASSWORD } }
+      containers:
+        - name: submit
+          image: disease-surveillance/flink
+          command: ["/opt/flink/job/submit.sh"]
+          envFrom:
+            - configMapRef: { name: surveillance-config }
+          env:
+            - name: JDBC_URL
+              valueFrom: { secretKeyRef: { name: surveillance-db, key: JDBC_URL } }
+            - name: JDBC_USER
+              valueFrom: { secretKeyRef: { name: surveillance-db, key: POSTGRES_USER } }
+            - name: JDBC_PASSWORD
+              valueFrom: { secretKeyRef: { name: surveillance-db, key: POSTGRES_PASSWORD } }
+          resources:
+            requests: { cpu: 100m, memory: 384Mi }
+            limits: { memory: 768Mi }

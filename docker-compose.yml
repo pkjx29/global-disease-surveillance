@@ -1,0 +1,181 @@
+# Global Disease Surveillance & Outbreak Analytics Platform - local stack
+#
+#   docker compose up --build            # everything: database, pipeline, API, dashboard, Kafka, Flink, replay
+#   open http://localhost:8080           # dashboard        (API docs: http://localhost:8000/api/v1/docs)
+#   open http://localhost:8081           # Flink web UI
+#
+# Start-up order: postgres -> pipeline (ETL + XGBoost, one-shot) -> api -> dashboard
+#                 redpanda -> topic-init; flink cluster -> flink-job (one-shot) -> producer (replay)
+
+name: disease-surveillance
+
+x-backend: &backend
+  build: ./backend
+  image: disease-surveillance/backend:local
+  environment: &backend-env
+    DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-surveillance}:${POSTGRES_PASSWORD:-surveillance}@postgres:5432/${POSTGRES_DB:-disease_surveillance}
+
+x-flink: &flink
+  build: ./flink
+  image: disease-surveillance/flink:local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-disease_surveillance}
+      POSTGRES_USER: ${POSTGRES_USER:-surveillance}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-surveillance}
+    ports:
+      - "5433:5432"                       # 5433 on the host so it never clashes with a local PostgreSQL
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # One-shot: download the public datasets, load PostgreSQL, train XGBoost, store risk scores.
+  pipeline:
+    <<: *backend
+    command: ["python", "-m", "pipeline", "all"]
+    healthcheck:
+      disable: true                       # the image's health check targets the API server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - rawdata:/app/data
+      - models:/app/models
+    restart: "no"
+
+  api:
+    <<: *backend
+    environment:
+      <<: *backend-env
+      CORS_ORIGINS: http://localhost:8080,http://localhost:5173
+    depends_on:
+      pipeline:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  dashboard:
+    build: ./frontend
+    image: disease-surveillance/dashboard:local
+    environment:
+      API_UPSTREAM: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- streaming
+  # Redpanda: a single-binary, Kafka-API-compatible broker (lighter than Kafka + ZooKeeper).
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+    ports:
+      - "19092:19092"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # One-shot: create the topic the producer writes to and Flink reads from.
+  topic-init:
+    image: redpandadata/redpanda:v24.2.7
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - rpk topic create case-reports --partitions 1 --replicas 1 --brokers redpanda:9092 || rpk topic describe case-reports --brokers redpanda:9092
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    restart: "no"
+
+  flink-jobmanager:
+    <<: *flink
+    command: jobmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        jobmanager.memory.process.size: 700m
+        rest.address: flink-jobmanager
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/overview > /dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  flink-taskmanager:
+    <<: *flink
+    command: taskmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.memory.process.size: 1024m
+        taskmanager.numberOfTaskSlots: 2
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+
+  # One-shot: submit the Flink SQL job to the session cluster.
+  flink-job:
+    <<: *flink
+    entrypoint: ["/opt/flink/job/submit.sh"]
+    environment:
+      FLINK_JOBMANAGER_HOST: flink-jobmanager
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      KAFKA_TOPIC: case-reports
+      JDBC_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-disease_surveillance}
+      JDBC_USER: ${POSTGRES_USER:-surveillance}
+      JDBC_PASSWORD: ${POSTGRES_PASSWORD:-surveillance}
+    depends_on:
+      flink-taskmanager:
+        condition: service_started
+      topic-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # One-shot: replay historical reports into Kafka as a simulated live feed.
+  producer:
+    <<: *backend
+    command: ["python", "-m", "stream.producer"]
+    healthcheck:
+      disable: true
+    environment:
+      <<: *backend-env
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      KAFKA_TOPIC: case-reports
+      REPLAY_START: ${REPLAY_START:-2023-01-02}
+      REPLAY_WEEKS_PER_SECOND: ${REPLAY_WEEKS_PER_SECOND:-0.5}
+    depends_on:
+      pipeline:
+        condition: service_completed_successfully
+      flink-job:
+        condition: service_completed_successfully
+    restart: "no"
+
+volumes:
+  pgdata:
+  rawdata:
+  models:

@@ -1,0 +1,15 @@
+# Non-secret configuration shared by the workloads.
+# Credentials live in the Secret "surveillance-db" (created per environment, never committed):
+#   POSTGRES_USER, POSTGRES_PASSWORD, DATABASE_URL (SQLAlchemy), JDBC_URL (Flink)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: surveillance-config
+data:
+  POSTGRES_DB: disease_surveillance
+  KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+  KAFKA_TOPIC: case-reports
+  FLINK_JOBMANAGER_HOST: flink-jobmanager
+  CORS_ORIGINS: "*"
+  REPLAY_START: "2023-01-02"
+  REPLAY_WEEKS_PER_SECOND: "0.5"
