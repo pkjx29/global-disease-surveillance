@@ -2,3 +2,5 @@
 pytest>=8.0
 httpx>=0.27
 ruff>=0.6
+pip-audit>=2.7          # CI: known vulnerabilities in requirements.txt
+matplotlib>=3.8         # python -m pipeline dp-eval draws docs/dp/dp_accuracy.png
