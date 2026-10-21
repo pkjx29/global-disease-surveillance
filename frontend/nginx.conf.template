@@ -1,4 +1,8 @@
-# ${API_UPSTREAM} is substituted at container start (nginx image template mechanism).
+# ${API_UPSTREAM} and ${API_KEY} are substituted at container start (nginx image template mechanism).
+
+# Browsers share the dashboard's API key, so they are rate-limited per client IP here instead.
+limit_req_zone $binary_remote_addr zone=api_per_ip:10m rate=10r/s;
+
 server {
     listen 8080;
     server_name _;
@@ -10,6 +14,9 @@ server {
 
     location /api/ {
         proxy_pass ${API_UPSTREAM};
+        proxy_set_header X-API-Key "${API_KEY}";    # added server-side: the browser never sees the key
+        limit_req zone=api_per_ip burst=40 nodelay;  # page load fires ~15 requests at once
+        limit_req_status 429;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

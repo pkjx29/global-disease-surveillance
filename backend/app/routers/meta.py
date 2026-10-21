@@ -11,9 +11,10 @@ from ..db import fetch_all, fetch_one, get_conn, get_engine
 from ..schemas import Disease, Health, Summary
 
 router = APIRouter(tags=["meta"])
+probes = APIRouter(tags=["meta"])        # no API key: Kubernetes and load balancers call these
 
 
-@router.get("/health", response_model=Health)
+@probes.get("/health", response_model=Health)
 def health() -> Health:
     """Liveness + database reachability (used by the Kubernetes probes)."""
     try:
@@ -26,7 +27,7 @@ def health() -> Health:
         return Health(status="degraded", database=False)
 
 
-@router.get("/ready", include_in_schema=False)
+@probes.get("/ready", include_in_schema=False)
 def ready() -> dict:
     """Readiness probe: 503 until the database is reachable and the schema exists."""
     try:

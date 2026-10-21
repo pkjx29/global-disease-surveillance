@@ -1,5 +1,6 @@
 # Azure Kubernetes Service. Applied by infra/azure/deploy.sh, which replaces the
-# ACR_LOGIN_SERVER and IMAGE_TAG placeholders and creates the "surveillance-db" Secret.
+# ACR_LOGIN_SERVER and IMAGE_TAG placeholders and creates the "surveillance-db" and
+# "surveillance-api" Secrets.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: surveillance

@@ -23,6 +23,10 @@ secretGenerator:
       - POSTGRES_PASSWORD=surveillance
       - DATABASE_URL=postgresql+psycopg2://surveillance:surveillance@postgres:5432/disease_surveillance
       - JDBC_URL=jdbc:postgresql://postgres:5432/disease_surveillance
+  - name: surveillance-api
+    literals:
+      - API_KEYS=local-dev-key
+      - DASHBOARD_API_KEY=local-dev-key
 generatorOptions:
   disableNameSuffixHash: true
 

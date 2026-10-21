@@ -15,10 +15,16 @@ class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
     db_pool_size: int = 5
     alert_poll_seconds: float = 2.0
+    api_keys: str = ""                    # comma-separated; empty = every protected route returns 401
+    rate_limit_per_minute: int = 300      # per API key, per API process
 
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def api_key_list(self) -> list[str]:
+        return [k.strip() for k in self.api_keys.split(",") if k.strip()]
 
 
 @lru_cache

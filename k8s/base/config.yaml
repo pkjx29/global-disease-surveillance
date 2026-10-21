@@ -1,6 +1,8 @@
 # Non-secret configuration shared by the workloads.
 # Credentials live in the Secret "surveillance-db" (created per environment, never committed):
 #   POSTGRES_USER, POSTGRES_PASSWORD, DATABASE_URL (SQLAlchemy), JDBC_URL (Flink)
+# and in the Secret "surveillance-api":
+#   API_KEYS (comma-separated keys the API accepts), DASHBOARD_API_KEY (one of them, used by nginx)
 apiVersion: v1
 kind: ConfigMap
 metadata:

@@ -62,7 +62,7 @@ az aks show --name "$AKS_NAME" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&
        --output none
 az aks get-credentials --name "$AKS_NAME" --resource-group "$RESOURCE_GROUP" --overwrite-existing
 
-echo "==> namespace and database secret"
+echo "==> namespace, database and API-key secrets"
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 if ! kubectl -n "$NAMESPACE" get secret surveillance-db >/dev/null 2>&1; then
   DB_PASSWORD="$(openssl rand -hex 24)"
@@ -71,6 +71,12 @@ if ! kubectl -n "$NAMESPACE" get secret surveillance-db >/dev/null 2>&1; then
     --from-literal=POSTGRES_PASSWORD="$DB_PASSWORD" \
     --from-literal=DATABASE_URL="postgresql+psycopg2://surveillance:${DB_PASSWORD}@postgres:5432/disease_surveillance" \
     --from-literal=JDBC_URL="jdbc:postgresql://postgres:5432/disease_surveillance"
+fi
+if ! kubectl -n "$NAMESPACE" get secret surveillance-api >/dev/null 2>&1; then
+  DASHBOARD_API_KEY="$(openssl rand -hex 24)"
+  kubectl -n "$NAMESPACE" create secret generic surveillance-api \
+    --from-literal=API_KEYS="$DASHBOARD_API_KEY" \
+    --from-literal=DASHBOARD_API_KEY="$DASHBOARD_API_KEY"
 fi
 
 echo "==> applying manifests"
