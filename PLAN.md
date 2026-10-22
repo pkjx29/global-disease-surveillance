@@ -13,13 +13,13 @@ output inspected; anything else is marked as not run. Updated 22 October 2026.
 | Leakage | Look-ahead test on features; purge test on the fit/validation split | `pytest` |
 | DP | Laplace and Gaussian release, sensitivity 2 per case, secure randomness for real releases, budget ledger (`dp_release_runs`) | `pytest` (empirical ε check, ledger refusal); `python -m pipeline dp-eval` |
 | API | API keys (probes open), per-key rate limit, key added by nginx server-side | `pytest` (401/429/Retry-After) |
-| CI | pip-audit on `requirements.txt`; Trivy on both images, pinned to a commit | Workflow written; **not yet run on GitHub** |
+| CI | pip-audit on `requirements.txt`; Trivy on both images, pinned to a commit | Run on PR #1: tests, pip-audit and the backend scan passed; the dashboard scan failed on an old base image, now bumped |
 | AKS | `deploy.sh` defaults to `plan` (no login, nothing created); `apply` needed to create resources | `plan` run locally; `apply` never run |
 
 ## Open, in priority order
 
-1. **Run CI on GitHub.** The pip-audit and Trivy steps have never run. If Trivy flags a base image
-   (`nginx-unprivileged:1.27-alpine` is the likeliest), bump the tag.
+1. **Keep CI green.** The first Trivy run flagged 57 fixable HIGH/CRITICAL issues in the dashboard's
+   old base image (`nginx-unprivileged:1.27-alpine`, Alpine 3.21.3); it now uses `1.30-alpine`.
 2. **Dengue deaths are stored as 0.** The OpenDengue extract has no deaths; `new_deaths` should be
    NULL ("not available") rather than a reported zero. Needs a nullable column and a `cfr_8w` that skips it.
 3. **Re-run the ETL on fresh files.** The WHO file has 702 more country-weeks and 250 revised counts
