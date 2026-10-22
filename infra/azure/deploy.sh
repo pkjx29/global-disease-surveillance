@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Deploy the platform to Azure Kubernetes Service.
 #
+#   ./infra/azure/deploy.sh          # plan (default): renders the manifests, lists what would be created, creates nothing
 #   az login                         # once, with your own account
-#   ./infra/azure/deploy.sh          # creates resource group, ACR, AKS; builds images; deploys
+#   ./infra/azure/deploy.sh apply    # creates resource group, ACR, AKS; builds images; deploys
 #   ./infra/azure/teardown.sh        # deletes everything again (stops the billing)
 #
 # Everything is created inside one resource group, so teardown is a single delete.
@@ -16,12 +17,32 @@ NODE_COUNT="${NODE_COUNT:-2}"
 NODE_SIZE="${NODE_SIZE:-Standard_B2ms}"            # 2 vCPU / 8 GiB: the stack needs roughly 4 GiB in total
 IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M)}"
 NAMESPACE="surveillance"
+MODE="${1:-plan}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-command -v az >/dev/null || { echo "Azure CLI not found: https://learn.microsoft.com/cli/azure/install-azure-cli"; exit 1; }
+case "$MODE" in
+  plan|apply) ;;
+  *) echo "usage: $0 [plan|apply]"; exit 1 ;;
+esac
 command -v kubectl >/dev/null || { echo "kubectl not found (az aks install-cli)"; exit 1; }
+
+if [[ "$MODE" == plan ]]; then
+  # dry run: no Azure login, no API calls, nothing created
+  echo "==> plan only, nothing is created"
+  echo "Would create : resource group $RESOURCE_GROUP ($LOCATION), a Basic container registry,"
+  echo "               AKS $AKS_NAME ($NODE_COUNT x $NODE_SIZE, free tier, Azure CNI with network policy)"
+  echo "Would build  : backend, dashboard and flink images tagged $IMAGE_TAG"
+  echo "Would create : Secrets surveillance-db and surveillance-api with random values"
+  echo "Kubernetes resources from k8s/overlays/azure:"
+  kubectl kustomize k8s/overlays/azure \
+    | awk '/^kind:/ { kind = $2 } /^  name:/ && kind { print "  " kind "/" $2; kind = "" }'
+  echo "Run '$0 apply' to create these billable resources."
+  exit 0
+fi
+
+command -v az >/dev/null || { echo "Azure CLI not found: https://learn.microsoft.com/cli/azure/install-azure-cli"; exit 1; }
 az account show >/dev/null 2>&1 || { echo "Not signed in. Run: az login"; exit 1; }
 
 SUBSCRIPTION="$(az account show --query name -o tsv)"
