@@ -119,3 +119,15 @@ def test_missing_deaths_stay_missing_in_features():
     panel = build_panel(cases, COUNTRIES, NEIGHBOURS)
     assert panel["cfr_8w"].isna().all()                 # unknown, not a fatality ratio of 0
     assert panel["log_cases"].notna().all()
+
+
+def test_test_anchors_stop_at_test_end():
+    from pipeline.model import split_by_time
+    from pipeline.settings import TEST_END, TRAIN_END
+
+    weeks = pd.date_range("2022-01-03", "2026-10-26", freq="7D")
+    panel = pd.DataFrame({"week_start": weeks, "label_valid": True})
+    train, test = split_by_time(panel)
+    assert train["week_start"].max() <= pd.Timestamp(TRAIN_END) - pd.Timedelta(weeks=4)
+    assert test["week_start"].min() > pd.Timestamp(TRAIN_END)
+    assert test["week_start"].max() <= pd.Timestamp(TEST_END)      # September weeks are outcomes only
