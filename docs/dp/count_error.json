@@ -16,6 +16,23 @@
       "share_zero_weeks_shown_nonzero": 0.484
     }
   },
+  "0.25": {
+    "covid19": {
+      "median_true_count": 130.0,
+      "mean_abs_error": 7.07,
+      "share_zero_weeks_shown_nonzero": 0.459
+    },
+    "dengue": {
+      "median_true_count": 16.0,
+      "mean_abs_error": 6.16,
+      "share_zero_weeks_shown_nonzero": 0.479
+    },
+    "mpox": {
+      "median_true_count": 0.0,
+      "mean_abs_error": 4.43,
+      "share_zero_weeks_shown_nonzero": 0.467
+    }
+  },
   "0.5": {
     "covid19": {
       "median_true_count": 130.0,
@@ -67,38 +84,21 @@
       "share_zero_weeks_shown_nonzero": 0.3
     }
   },
-  "5.0": {
+  "4.0": {
     "covid19": {
       "median_true_count": 130.0,
-      "mean_abs_error": 0.29,
-      "share_zero_weeks_shown_nonzero": 0.134
+      "mean_abs_error": 0.4,
+      "share_zero_weeks_shown_nonzero": 0.175
     },
     "dengue": {
       "median_true_count": 16.0,
+      "mean_abs_error": 0.35,
+      "share_zero_weeks_shown_nonzero": 0.188
+    },
+    "mpox": {
+      "median_true_count": 0.0,
       "mean_abs_error": 0.25,
-      "share_zero_weeks_shown_nonzero": 0.144
-    },
-    "mpox": {
-      "median_true_count": 0.0,
-      "mean_abs_error": 0.19,
-      "share_zero_weeks_shown_nonzero": 0.143
-    }
-  },
-  "10.0": {
-    "covid19": {
-      "median_true_count": 130.0,
-      "mean_abs_error": 0.08,
-      "share_zero_weeks_shown_nonzero": 0.04
-    },
-    "dengue": {
-      "median_true_count": 16.0,
-      "mean_abs_error": 0.07,
-      "share_zero_weeks_shown_nonzero": 0.039
-    },
-    "mpox": {
-      "median_true_count": 0.0,
-      "mean_abs_error": 0.05,
-      "share_zero_weeks_shown_nonzero": 0.039
+      "share_zero_weeks_shown_nonzero": 0.179
     }
   }
 }

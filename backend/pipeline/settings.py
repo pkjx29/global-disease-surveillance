@@ -24,6 +24,10 @@ TRAIN_END = os.environ.get("TRAIN_END", "2022-12-31")     # everything after thi
 MIN_SURGE_CASES = {"covid19": 100, "dengue": 50, "mpox": 10}
 MIN_SURGE_INCIDENCE = {"covid19": 1.0, "dengue": 0.5, "mpox": 0.0}    # per 100k over 4 weeks
 
+# Differential privacy: total budget for all releases of the same counts (sequential composition)
+DP_TOTAL_EPSILON = float(os.environ.get("DP_TOTAL_EPSILON", "2.0"))
+DP_TOTAL_DELTA = float(os.environ.get("DP_TOTAL_DELTA", "1e-5"))
+
 RISK_LEVELS = [("Critical", 0.60), ("High", 0.35), ("Moderate", 0.15), ("Low", 0.0)]
 
 

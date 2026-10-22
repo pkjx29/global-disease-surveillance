@@ -91,3 +91,42 @@ def test_gaussian_mechanism():
 def test_invalid_settings_are_rejected(kwargs):
     with pytest.raises(ValueError):
         release_case_counts(make_cases(3), **kwargs)
+
+
+def test_release_without_seed_uses_secure_randomness():
+    cases = make_cases(20_000)
+    a, b = release_case_counts(cases, 1.0), release_case_counts(cases, 1.0)
+    assert not a.equals(b)                              # never reproducible
+    noise = a["new_cases"] - cases["new_cases"]
+    assert noise.std() == pytest.approx(np.sqrt(2) * laplace_scale(1.0), rel=0.05)
+
+
+# ----------------------------------------------------------------- budget ledger (needs PostgreSQL)
+@pytest.fixture
+def ledger(engine):
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        conn.execute(text("TRUNCATE dp_release_runs RESTART IDENTITY"))
+    return engine
+
+
+def test_release_is_written_and_recorded(ledger, tmp_path):
+    from pipeline import dp_release
+
+    meta = dp_release.release(ledger, 0.5, tmp_path / "release.csv", total_epsilon=1.0)
+    released = pd.read_csv(tmp_path / "release.csv")
+    assert len(released) == 24 and meta["cells"] == 24 and meta["delta"] == 0.0
+    assert (released[["new_cases", "new_deaths"]] >= 0).all().all()
+    assert (tmp_path / "release.json").exists()
+    assert dp_release.budget_spent(ledger) == (0.5, 0.0)
+
+
+def test_release_over_budget_is_refused_before_writing(ledger, tmp_path):
+    from pipeline import dp_release
+
+    dp_release.release(ledger, 0.75, tmp_path / "first.csv", total_epsilon=1.0)
+    with pytest.raises(dp_release.BudgetExceeded):
+        dp_release.release(ledger, 0.5, tmp_path / "second.csv", total_epsilon=1.0)    # 0.75 + 0.5 > 1
+    assert not (tmp_path / "second.csv").exists()
+    assert dp_release.budget_spent(ledger) == (0.75, 0.0)

@@ -13,12 +13,19 @@ same cell by 1. So:
 Rounding the noisy numbers and clipping them at zero happen after the noise, so they use
 no extra privacy budget (post-processing).
 
+Randomness: a real release (no ``seed``) draws its noise from the operating system's
+cryptographically secure generator (``secrets.SystemRandom``), so nobody can predict or
+replay it. A ``seed`` switches to NumPy's reproducible generator, which is only for
+experiments and tests.
+
 What this does not cover: a person reported more than once (e.g. a COVID-19 reinfection)
 is protected at k * epsilon for k reports; and the shape of the table (which country-weeks
 exist, the ``reported`` flag) is treated as public.
 """
 
 from __future__ import annotations
+
+import secrets
 
 import numpy as np
 import pandas as pd
@@ -47,6 +54,17 @@ def gaussian_sigma(epsilon: float, delta: float, sensitivity: float = L2_SENSITI
     return np.sqrt(2 * np.log(1.25 / delta)) * sensitivity / epsilon
 
 
+def secure_noise(mechanism: str, scale: float, shape: tuple[int, int]) -> np.ndarray:
+    """Noise from the operating system's secure random generator (for real releases)."""
+    rng = secrets.SystemRandom()
+    n = shape[0] * shape[1]
+    if mechanism == "laplace":
+        draws = [rng.expovariate(1.0) - rng.expovariate(1.0) for _ in range(n)]     # Exp(1) - Exp(1) ~ Laplace(0, 1)
+    else:
+        draws = [rng.gauss(0.0, 1.0) for _ in range(n)]
+    return scale * np.array(draws).reshape(shape)
+
+
 def release_case_counts(
     cases: pd.DataFrame,
     epsilon: float,
@@ -58,17 +76,23 @@ def release_case_counts(
 
     Only weeks a country actually reported are noised; unreported weeks stay at zero
     with ``reported = False`` so they are still never mistaken for real zeros.
+    ``seed = None`` (the default) uses secure randomness; a seed gives reproducible noise.
     """
-    rng = np.random.default_rng(seed)
+    if mechanism == "laplace":
+        scale = laplace_scale(epsilon)
+    elif mechanism == "gaussian":
+        scale = gaussian_sigma(epsilon, delta)
+    else:
+        raise ValueError(f"unknown mechanism '{mechanism}'")
+
     out = cases.copy()
     reported = out["reported"].to_numpy(dtype=bool)
     shape = (int(reported.sum()), len(COUNT_COLUMNS))
-    if mechanism == "laplace":
-        noise = rng.laplace(0.0, laplace_scale(epsilon), size=shape)
-    elif mechanism == "gaussian":
-        noise = rng.normal(0.0, gaussian_sigma(epsilon, delta), size=shape)
+    if seed is None:
+        noise = secure_noise(mechanism, scale, shape)
     else:
-        raise ValueError(f"unknown mechanism '{mechanism}'")
+        rng = np.random.default_rng(seed)
+        noise = rng.laplace(0.0, scale, size=shape) if mechanism == "laplace" else rng.normal(0.0, scale, size=shape)
 
     true_counts = out.loc[reported, COUNT_COLUMNS].to_numpy(dtype=float)
     noisy = np.clip(np.round(true_counts + noise), 0, None)       # post-processing: free

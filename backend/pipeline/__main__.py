@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import time
+from pathlib import Path
 
 from .settings import setup_logging
 
@@ -20,6 +21,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--force", action="store_true", help="re-download sources even if cached")
     parser.add_argument("--epsilon", type=float, default=1.0, help="privacy budget for dp-release")
+    parser.add_argument("--mechanism", choices=["laplace", "gaussian"], default="laplace", help="noise for dp-release")
     parser.add_argument("--out", default="case_reports_dp.csv", help="output file for dp-release")
     args = parser.parse_args(argv)
     setup_logging()
@@ -38,12 +40,11 @@ def main(argv: list[str] | None = None) -> None:
 
         dp_eval.run()
     if args.step == "dp-release":
-        from . import load, model, privacy
+        from . import dp_release, load
 
-        cases, _, _ = model.read_inputs(load.get_engine())
-        # one release per epsilon: publishing fresh noise again would let readers average it away
-        privacy.release_case_counts(cases, args.epsilon).to_csv(args.out, index=False)
-        log.info("wrote %d country-weeks with epsilon = %g to %s", len(cases), args.epsilon, args.out)
+        # every release is recorded and counted against the total budget: fresh noise on the
+        # same counts would otherwise let readers average it away
+        dp_release.release(load.get_engine(), args.epsilon, Path(args.out), mechanism=args.mechanism)
     log.info("%s finished in %.0f s", args.step, time.time() - t0)
 
 

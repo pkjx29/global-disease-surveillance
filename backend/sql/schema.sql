@@ -122,6 +122,22 @@ CREATE TABLE IF NOT EXISTS etl_runs (
     rows_loaded  jsonb
 );
 
+-- ------------------------------------------------------------ privacy releases
+-- Ledger of differentially private releases of case_reports. Every release of the same
+-- counts spends privacy budget, so the ledger is summed before a new release is allowed.
+CREATE TABLE IF NOT EXISTS dp_release_runs (
+    release_id      serial PRIMARY KEY,
+    released_at     timestamptz NOT NULL DEFAULT now(),
+    mechanism       text NOT NULL CHECK (mechanism IN ('laplace', 'gaussian')),
+    epsilon         double precision NOT NULL CHECK (epsilon > 0),
+    delta           double precision NOT NULL DEFAULT 0 CHECK (delta >= 0 AND delta < 1),
+    privacy_unit    text NOT NULL,
+    sensitivity     double precision NOT NULL,
+    cells           integer NOT NULL,
+    data_through    date,
+    output_sha256   text NOT NULL
+);
+
 -- ----------------------------------------------------------------------- views
 CREATE OR REPLACE VIEW v_active_run AS
 SELECT * FROM model_runs WHERE is_active ORDER BY run_id DESC LIMIT 1;

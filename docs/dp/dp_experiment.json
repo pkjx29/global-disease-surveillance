@@ -1,0 +1,42 @@
+{
+  "status": "experimental perturbation study of already-public aggregate counts, not a patient-level privacy release",
+  "mechanism": "laplace",
+  "epsilons": [
+    0.1,
+    0.25,
+    0.5,
+    1.0,
+    2.0,
+    4.0
+  ],
+  "delta": 0.0,
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "privacy_unit": "one reported case (adds 1 to new_cases and at most 1 to new_deaths in one disease-country-week cell)",
+  "adjacency": "add or remove one reported case",
+  "contribution_bound": "one cell; at most +1 new_cases and +1 new_deaths",
+  "l1_sensitivity": 2.0,
+  "composition": "parallel across cells; each epsilon is a separate hypothetical release, so the grid itself is not one budget",
+  "query_dimensions": {
+    "cells": 90492,
+    "columns": [
+      "new_cases",
+      "new_deaths"
+    ]
+  },
+  "split": {
+    "train_anchor_end": "2022-12-03",
+    "test_anchors": [
+      "2023-01-02",
+      "2026-08-03"
+    ]
+  },
+  "test_rows": 30765,
+  "test_positives": 1794,
+  "test_mpox_rows": 11056,
+  "test_mpox_positives": 351,
+  "labels": "test labels always from the true counts"
+}

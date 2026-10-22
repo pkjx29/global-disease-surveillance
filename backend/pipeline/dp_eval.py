@@ -26,14 +26,15 @@ import numpy as np
 import pandas as pd
 
 from . import load
+from .dp_release import PRIVACY_UNIT
 from .features import FEATURES, build_panel
 from .model import classification_metrics, fit_xgb, read_inputs
-from .privacy import release_case_counts
+from .privacy import L1_SENSITIVITY, release_case_counts
 from .settings import BACKEND_ROOT, HORIZON_WEEKS, TRAIN_END
 
 log = logging.getLogger(__name__)
 
-EPSILONS = [0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
+EPSILONS = [0.1, 0.25, 0.5, 1.0, 2.0, 4.0]
 SEEDS = [0, 1, 2]
 KEY = ["disease", "iso3", "week_start"]
 OUT_DIR = BACKEND_ROOT.parent / "docs" / "dp"
@@ -107,6 +108,29 @@ def run(engine=None, epsilons: list[float] = EPSILONS, seeds: list[int] = SEEDS,
     out_dir.mkdir(parents=True, exist_ok=True)
     results.to_csv(out_dir / "dp_results.csv", index=False, float_format="%.4f")
     (out_dir / "count_error.json").write_text(json.dumps(errors, indent=2), encoding="utf-8")
+    experiment = {
+        "status": "experimental perturbation study of already-public aggregate counts, not a patient-level privacy release",
+        "mechanism": "laplace",
+        "epsilons": epsilons,
+        "delta": 0.0,
+        "seeds": seeds,
+        "privacy_unit": PRIVACY_UNIT,
+        "adjacency": "add or remove one reported case",
+        "contribution_bound": "one cell; at most +1 new_cases and +1 new_deaths",
+        "l1_sensitivity": L1_SENSITIVITY,
+        "composition": "parallel across cells; each epsilon is a separate hypothetical release, so the grid itself is not one budget",
+        "query_dimensions": {"cells": int(cases["reported"].sum()), "columns": ["new_cases", "new_deaths"]},
+        "split": {
+            "train_anchor_end": str((pd.Timestamp(TRAIN_END) - pd.Timedelta(weeks=HORIZON_WEEKS)).date()),
+            "test_anchors": [str(test["week_start"].min().date()), str(test["week_start"].max().date())],
+        },
+        "test_rows": int(len(test)),
+        "test_positives": int(test["label"].sum()),
+        "test_mpox_rows": int((test["disease"] == "mpox").sum()),
+        "test_mpox_positives": int(test.loc[test["disease"] == "mpox", "label"].sum()),
+        "labels": "test labels always from the true counts",
+    }
+    (out_dir / "dp_experiment.json").write_text(json.dumps(experiment, indent=2), encoding="utf-8")
     summary = summarise(results)
     summary.to_csv(out_dir / "dp_summary.csv", index=False, float_format="%.3f")
     plot(summary, out_dir / "dp_accuracy.png")
