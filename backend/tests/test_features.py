@@ -82,3 +82,32 @@ def test_risk_levels_and_metrics():
     m = classification_metrics(y, np.linspace(0.9, 0.0, 10))
     assert m["roc_auc"] == 1.0 and m["pr_auc"] == 1.0 and m["positives"] == 2
     assert m["capture_top_10pct"] == 0.5         # the single top-ranked row holds one of two positives
+
+
+def test_threshold_metrics_counts_and_undefined_rates():
+    from pipeline.model import threshold_metrics
+
+    y = np.array([1, 1, 0, 0, 0])
+    m = threshold_metrics(y, np.array([0.9, 0.2, 0.8, 0.1, 0.1]), 0.5)
+    assert (m["tp"], m["fn"], m["fp"], m["tn"]) == (1, 1, 1, 2)
+    assert m["precision"] == 0.5 and m["recall"] == 0.5 and m["specificity"] == pytest.approx(2 / 3)
+    assert m["balanced_accuracy"] == pytest.approx((0.5 + 2 / 3) / 2)
+    nothing_flagged = threshold_metrics(y, np.zeros(5), 0.5)
+    assert nothing_flagged["precision"] is None and nothing_flagged["f1"] == 0.0     # undefined, not invented
+
+
+def test_threshold_is_chosen_from_the_scores_given():
+    from pipeline.model import select_threshold
+
+    y = np.array([0, 0, 0, 1, 1])
+    assert select_threshold(y, np.array([0.1, 0.2, 0.3, 0.7, 0.9])) == 0.7    # separates the classes perfectly
+
+
+def test_fit_labels_never_reach_the_validation_weeks():
+    from pipeline.model import HORIZON_WEEKS, VALIDATION_WEEKS, fit_val_split
+
+    train = pd.DataFrame({"week_start": pd.date_range("2020-01-06", periods=120, freq="7D")})
+    fit, val = fit_val_split(train)
+    gap = (val["week_start"].min() - fit["week_start"].max()).days // 7
+    assert gap > HORIZON_WEEKS                        # last fit label window ends before validation starts
+    assert len(val) == VALIDATION_WEEKS

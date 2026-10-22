@@ -41,6 +41,8 @@ spec:
               valueFrom: { secretKeyRef: { name: surveillance-db, key: DATABASE_URL } }
             - name: CORS_ORIGINS
               valueFrom: { configMapKeyRef: { name: surveillance-config, key: CORS_ORIGINS } }
+            - name: API_KEYS
+              valueFrom: { secretKeyRef: { name: surveillance-api, key: API_KEYS } }
           readinessProbe:               # 503 until the database is loaded
             httpGet: { path: /api/v1/ready, port: http }
             periodSeconds: 10

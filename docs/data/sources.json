@@ -1,0 +1,95 @@
+[
+  {
+    "key": "covid19",
+    "provider": "World Health Organization - COVID-19 dashboard",
+    "url": "https://srhdpeuwpubsa.blob.core.windows.net/whdh/COVID/WHO-COVID-19-global-data.csv",
+    "licence": "CC BY 4.0",
+    "content": "COVID-19 cases and deaths",
+    "resolution": "weekly, national",
+    "used_in": "case_reports (disease = covid19)",
+    "rows_in_database": 81666,
+    "rows_reported_or_with_geometry": 52735,
+    "file": {
+      "source": "covid19",
+      "url": "https://srhdpeuwpubsa.blob.core.windows.net/whdh/COVID/WHO-COVID-19-global-data.csv",
+      "file": "who_covid19_weekly.csv",
+      "bytes": 3921136,
+      "sha256": "019f99946643b87c7d6a85f3df9d31dbea5e859f7313cb69a1d1bde102229358",
+      "retrieved_at": "2026-10-22T08:20:16+00:00"
+    }
+  },
+  {
+    "key": "mpox",
+    "provider": "Our World in Data, from WHO mpox surveillance",
+    "url": "https://catalog.ourworldindata.org/explorers/who/latest/monkeypox/monkeypox.csv",
+    "licence": "CC BY 4.0",
+    "content": "mpox cases and deaths",
+    "resolution": "daily, national; summed to ISO weeks",
+    "used_in": "case_reports (disease = mpox)",
+    "rows_in_database": 14519,
+    "rows_reported_or_with_geometry": 14519,
+    "file": {
+      "source": "mpox",
+      "url": "https://catalog.ourworldindata.org/explorers/who/latest/monkeypox/monkeypox.csv",
+      "file": "owid_mpox.csv",
+      "bytes": 7975197,
+      "sha256": "24bd61917dbb15bb71d55fee8dbdfeb225181c8a3fff1dcd08a4ed65bc04a905",
+      "retrieved_at": "2026-10-22T08:20:18+00:00"
+    }
+  },
+  {
+    "key": "dengue",
+    "provider": "OpenDengue v1.3 (Clarke et al., 2024)",
+    "url": "https://raw.githubusercontent.com/OpenDengue/master-repo/main/data/releases/V1.3/National_extract_V1_3.zip",
+    "licence": "CC BY 4.0",
+    "content": "dengue cases",
+    "resolution": "weekly or coarser, national; only weekly rows used",
+    "used_in": "case_reports (disease = dengue)",
+    "rows_in_database": 23238,
+    "rows_reported_or_with_geometry": 23238,
+    "file": {
+      "source": "dengue",
+      "url": "https://raw.githubusercontent.com/OpenDengue/master-repo/main/data/releases/V1.3/National_extract_V1_3.zip",
+      "file": "opendengue_national_v1_3.zip",
+      "bytes": 316140,
+      "sha256": "d4fa7b1a881481fd5323991cc7a23dbe690112e2c473898ceea76e1e9c85dc59",
+      "retrieved_at": "2026-10-22T08:21:57+00:00"
+    }
+  },
+  {
+    "key": "cholera_cases",
+    "provider": "WHO Global Health Observatory",
+    "url": "https://ghoapi.azureedge.net/api/CHOLERA_0000000001",
+    "licence": "CC BY-NC-SA 3.0 IGO",
+    "content": "cholera cases",
+    "resolution": "annual, national",
+    "used_in": "annual_indicators (cholera_cases); not used by the model",
+    "rows_in_database": 2465,
+    "rows_reported_or_with_geometry": 2465,
+    "file": null
+  },
+  {
+    "key": "measles_cases",
+    "provider": "WHO Global Health Observatory",
+    "url": "https://ghoapi.azureedge.net/api/WHS3_62",
+    "licence": "CC BY-NC-SA 3.0 IGO",
+    "content": "measles cases",
+    "resolution": "annual, national",
+    "used_in": "annual_indicators (measles_cases); not used by the model",
+    "rows_in_database": 9419,
+    "rows_reported_or_with_geometry": 9419,
+    "file": null
+  },
+  {
+    "key": "countries",
+    "provider": "Natural Earth 1:50m admin-0 countries",
+    "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson",
+    "licence": "Public domain",
+    "content": "country boundaries and population",
+    "resolution": "static",
+    "used_in": "countries, country_neighbours",
+    "rows_in_database": 246,
+    "rows_reported_or_with_geometry": 238,
+    "file": null
+  }
+]

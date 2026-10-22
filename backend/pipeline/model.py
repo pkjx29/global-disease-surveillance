@@ -11,7 +11,7 @@ import pandas as pd
 import xgboost as xgb
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import average_precision_score, brier_score_loss, roc_auc_score
+from sklearn.metrics import average_precision_score, brier_score_loss, confusion_matrix, roc_auc_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sqlalchemy import text
@@ -85,14 +85,61 @@ def classification_metrics(y: np.ndarray, score: np.ndarray, probability: bool =
     return out
 
 
+def select_threshold(y: np.ndarray, score: np.ndarray) -> float:
+    """Decision threshold with the best F1 on validation data (never chosen on the test set)."""
+    candidates = np.unique(np.round(score, 3))
+    f1 = [threshold_metrics(y, score, t)["f1"] for t in candidates]
+    return float(candidates[int(np.argmax(f1))])
+
+
+def threshold_metrics(y: np.ndarray, score: np.ndarray, threshold: float) -> dict:
+    """Confusion matrix and the rates derived from it, at one decision threshold."""
+    tn, fp, fn, tp = (int(v) for v in confusion_matrix(y, score >= threshold, labels=[0, 1]).ravel())
+
+    def ratio(a: int, b: int) -> float | None:
+        return a / b if b else None                # undefined, not zero, when there is nothing to divide by
+
+    recall, specificity = ratio(tp, tp + fn), ratio(tn, tn + fp)
+    return {
+        "threshold": float(threshold),
+        "tn": tn,
+        "fp": fp,
+        "fn": fn,
+        "tp": tp,
+        "precision": ratio(tp, tp + fp),
+        "recall": recall,
+        "specificity": specificity,
+        "f1": ratio(2 * tp, 2 * tp + fp + fn) or 0.0,
+        "balanced_accuracy": (recall + specificity) / 2 if recall is not None and specificity is not None else None,
+    }
+
+
+def split_by_time(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Train on anchors whose 4-week outcome ends by TRAIN_END; test on anchors after it."""
+    train_end = pd.Timestamp(TRAIN_END)
+    labelled = panel[panel["label_valid"]]
+    train = labelled[labelled["week_start"] <= train_end - pd.Timedelta(weeks=HORIZON_WEEKS)]
+    test = labelled[labelled["week_start"] > train_end]
+    return train, test
+
+
+def fit_val_split(train: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Last ``VALIDATION_WEEKS`` of training, for early stopping and the threshold.
+
+    The fit part ends ``HORIZON_WEEKS`` before the cut, so no fit label looks into the validation weeks.
+    """
+    cut = train["week_start"].max() - pd.Timedelta(weeks=VALIDATION_WEEKS)
+    fit = train[train["week_start"] <= cut - pd.Timedelta(weeks=HORIZON_WEEKS)]
+    return fit, train[train["week_start"] > cut]
+
+
 def fit_xgb(train: pd.DataFrame, n_estimators: int | None = None) -> xgb.XGBClassifier:
     """Fit with early stopping on the most recent ``VALIDATION_WEEKS`` of the training period."""
     params = dict(PARAMS)
     if n_estimators is not None:              # tree count already chosen: use all the data
         params["n_estimators"] = n_estimators
         return xgb.XGBClassifier(**params).fit(train[FEATURES], train["label"])
-    cut = train["week_start"].max() - pd.Timedelta(weeks=VALIDATION_WEEKS)
-    fit, val = train[train["week_start"] <= cut], train[train["week_start"] > cut]
+    fit, val = fit_val_split(train)
     model = xgb.XGBClassifier(**params, early_stopping_rounds=EARLY_STOPPING_ROUNDS)
     model.fit(fit[FEATURES], fit["label"], eval_set=[(val[FEATURES], val["label"])], verbose=False)
     return model
@@ -136,6 +183,52 @@ def top_drivers(model: xgb.XGBClassifier, X: pd.DataFrame, k: int = 3) -> list[l
     return out
 
 
+def logistic_regression():
+    return make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), LogisticRegression(max_iter=2000, C=0.5))
+
+
+def evaluate(panel: pd.DataFrame) -> tuple[xgb.XGBClassifier, pd.DataFrame, pd.DataFrame, dict]:
+    """Fit XGBoost and the baselines on the training period and score the held-out period.
+
+    Decision thresholds are chosen on the validation weeks (end of the training period) and
+    only then applied to the test set, so the test set never influences any choice.
+    """
+    train, test = split_by_time(panel)
+    log.info("train %d rows (%.1f%% positive) | test %d rows (%.1f%% positive)", len(train), 100 * train.label.mean(), len(test), 100 * test.label.mean())
+    fit, val = fit_val_split(train)
+    y_val, y_test = val["label"].to_numpy(), test["label"].to_numpy()
+
+    model = fit_xgb(train)                      # trained on `fit`, early-stopped on `val`
+    proba = model.predict_proba(test[FEATURES])[:, 1]
+    xgb_threshold = select_threshold(y_val, model.predict_proba(val[FEATURES])[:, 1])
+
+    # baselines on the same held-out period; the logistic threshold comes from a copy fitted without the validation weeks
+    persistence = classification_metrics(y_test, test["growth_4w"].fillna(0).to_numpy(), probability=False)
+    logit_proba = logistic_regression().fit(train[FEATURES], train["label"]).predict_proba(test[FEATURES])[:, 1]
+    logit_val = logistic_regression().fit(fit[FEATURES], fit["label"]).predict_proba(val[FEATURES])[:, 1]
+
+    metrics = {
+        "definition": f"cases at least x{SURGE_RATIO:g} over the next {HORIZON_WEEKS} weeks and above a minimum size",
+        "train_end": TRAIN_END,
+        "train_rows": int(len(train)),
+        "validation_period": [str(val["week_start"].min().date()), str(val["week_start"].max().date())],
+        "test_rows": int(len(test)),
+        "test_period": [str(test["week_start"].min().date()), str(test["week_start"].max().date())],
+        "best_iteration": int(model.best_iteration),
+        "xgboost": classification_metrics(y_test, proba),
+        "xgboost_at_threshold": threshold_metrics(y_test, proba, xgb_threshold),
+        "by_disease": {
+            disease: classification_metrics(group["label"].to_numpy(), proba[(test["disease"] == disease).to_numpy()])
+            for disease, group in test.groupby("disease")
+        },
+        "baseline_persistence": persistence,
+        "baseline_logistic_regression": classification_metrics(y_test, logit_proba),
+        "logistic_regression_at_threshold": threshold_metrics(y_test, logit_proba, select_threshold(y_val, logit_val)),
+        "rolling_origin": rolling_origin(panel[panel["label_valid"]], n_estimators=int(model.best_iteration) + 1),
+    }
+    return model, train, test, metrics
+
+
 # -------------------------------------------------------------------------- main
 def run(engine: Engine | None = None) -> dict:
     """Train on data up to TRAIN_END, evaluate on everything after, store scores for the dashboard."""
@@ -145,38 +238,8 @@ def run(engine: Engine | None = None) -> dict:
     panel = build_panel(cases, countries, neighbours)
     log.info("panel: %d rows, %d series (%.0f s)", len(panel), panel.groupby(["disease", "iso3"]).ngroups, time.time() - t0)
 
-    train_end = pd.Timestamp(TRAIN_END)
-    labelled = panel[panel["label_valid"]]
-    train = labelled[labelled["week_start"] <= train_end - pd.Timedelta(weeks=HORIZON_WEEKS)]
-    test = labelled[labelled["week_start"] > train_end]
-    log.info("train %d rows (%.1f%% positive) | test %d rows (%.1f%% positive)", len(train), 100 * train.label.mean(), len(test), 100 * test.label.mean())
-
-    model = fit_xgb(train)
-    y_test = test["label"].to_numpy()
-    proba = model.predict_proba(test[FEATURES])[:, 1]
-
-    # baselines on the same held-out period
-    persistence = classification_metrics(y_test, test["growth_4w"].fillna(0).to_numpy(), probability=False)
-    logit = make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), LogisticRegression(max_iter=2000, C=0.5))
-    logit.fit(train[FEATURES], train["label"])
-    logit_metrics = classification_metrics(y_test, logit.predict_proba(test[FEATURES])[:, 1])
-
-    metrics = {
-        "definition": f"cases at least x{SURGE_RATIO:g} over the next {HORIZON_WEEKS} weeks and above a minimum size",
-        "train_end": TRAIN_END,
-        "train_rows": int(len(train)),
-        "test_rows": int(len(test)),
-        "test_period": [str(test["week_start"].min().date()), str(test["week_start"].max().date())],
-        "best_iteration": int(model.best_iteration),
-        "xgboost": classification_metrics(y_test, proba),
-        "by_disease": {
-            disease: classification_metrics(group["label"].to_numpy(), proba[(test["disease"] == disease).to_numpy()])
-            for disease, group in test.groupby("disease")
-        },
-        "baseline_persistence": persistence,
-        "baseline_logistic_regression": logit_metrics,
-        "rolling_origin": rolling_origin(labelled, n_estimators=int(model.best_iteration) + 1),
-    }
+    model, train, test, metrics = evaluate(panel)
+    logit_metrics, persistence = metrics["baseline_logistic_regression"], metrics["baseline_persistence"]
     log.info(
         "held-out %s..%s | XGBoost ROC-AUC %.3f PR-AUC %.3f | logistic PR-AUC %.3f | persistence PR-AUC %.3f | base rate %.3f",
         *metrics["test_period"],
@@ -205,7 +268,7 @@ def run(engine: Engine | None = None) -> dict:
     (MODEL_DIR / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     # ---- score every usable week after the training cut-off (all out-of-sample)
-    to_score = panel[panel["feature_valid"] & (panel["week_start"] > train_end)].copy()
+    to_score = panel[panel["feature_valid"] & (panel["week_start"] > pd.Timestamp(TRAIN_END))].copy()
     to_score["risk_probability"] = model.predict_proba(to_score[FEATURES])[:, 1]
     to_score["risk_level"] = risk_level(to_score["risk_probability"].to_numpy())
     to_score["top_drivers"] = [json.dumps(d) for d in top_drivers(model, to_score[FEATURES])]

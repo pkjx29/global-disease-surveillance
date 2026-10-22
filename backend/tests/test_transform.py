@@ -84,3 +84,17 @@ def test_gho_annual_parses_display_values(tmp_path):
     path.write_text(json.dumps(payload))
     df = transform.gho_annual(path, "measles_cases")
     assert sorted(zip(df.year, df.value, strict=True)) == [(1980, 1234.0), (2010, 31458.0)]
+
+
+def test_download_sidecar_records_checksum_and_time(tmp_path, monkeypatch):
+    import hashlib
+    import json
+
+    from pipeline import sources
+
+    monkeypatch.setattr(sources, "RAW_DIR", tmp_path)
+    sources.path_for("mpox").write_bytes(b"iso_code,date,new_cases\nIND,2024-01-01,3\n")
+    meta = sources.write_meta("mpox")
+    assert meta["sha256"] == hashlib.sha256(sources.path_for("mpox").read_bytes()).hexdigest()
+    assert meta["url"] == sources.SOURCES["mpox"].url and meta["retrieved_at"].endswith("+00:00")
+    assert json.loads(sources.meta_path("mpox").read_text()) == meta

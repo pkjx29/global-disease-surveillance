@@ -7,7 +7,12 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': { target: process.env.VITE_DEV_API ?? 'http://localhost:8000', changeOrigin: true },
+      // the key is added here, server-side, so it never reaches the browser bundle
+      '/api': {
+        target: process.env.VITE_DEV_API ?? 'http://localhost:8000',
+        changeOrigin: true,
+        headers: { 'X-API-Key': process.env.API_KEY ?? '' },
+      },
     },
   },
   test: { environment: 'node', include: ['src/**/*.test.ts'] },

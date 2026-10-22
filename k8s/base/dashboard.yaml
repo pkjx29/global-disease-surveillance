@@ -34,6 +34,8 @@ spec:
           env:
             - name: API_UPSTREAM          # nginx proxies /api/ to the API service
               value: http://api:8000
+            - name: API_KEY               # ... and adds this key to each request
+              valueFrom: { secretKeyRef: { name: surveillance-api, key: DASHBOARD_API_KEY } }
           readinessProbe:
             httpGet: { path: /healthz, port: http }
             periodSeconds: 10

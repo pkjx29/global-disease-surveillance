@@ -1,0 +1,253 @@
+{
+  "dataset_sha256": "3a73cc7f48754f5dd68e6fa92a857c9087ff1ddb5b8fe8da9b47ef02298fef58",
+  "environment": {
+    "created_at": "2026-10-22T08:17:42+00:00",
+    "git_commit": "70239ce",
+    "python": "3.13.9",
+    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+    "packages": {
+      "xgboost": "3.2.0",
+      "scikit-learn": "1.7.2",
+      "pandas": "2.3.3",
+      "numpy": "2.3.5"
+    }
+  },
+  "params": {
+    "n_estimators": 1500,
+    "learning_rate": 0.03,
+    "max_depth": 5,
+    "min_child_weight": 10,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_lambda": 2.0,
+    "tree_method": "hist",
+    "eval_metric": "aucpr",
+    "random_state": 42,
+    "n_jobs": 4,
+    "best_iteration": 236
+  },
+  "metrics": {
+    "definition": "cases at least x2 over the next 4 weeks and above a minimum size",
+    "train_end": "2022-12-31",
+    "train_rows": 46621,
+    "validation_period": [
+      "2022-06-06",
+      "2022-11-28"
+    ],
+    "test_rows": 30765,
+    "test_period": [
+      "2023-01-02",
+      "2026-08-03"
+    ],
+    "best_iteration": 236,
+    "xgboost": {
+      "n": 30765,
+      "positives": 1794,
+      "prevalence": 0.0583130180399805,
+      "roc_auc": 0.823011272911323,
+      "pr_auc": 0.3365894067175614,
+      "capture_top_10pct": 0.5150501672240803,
+      "precision_top_10pct": 0.30039011703511054,
+      "brier": 0.05879612045343837,
+      "precision_at_critical": 0.4197952218430034,
+      "recall_at_critical": 0.342809364548495,
+      "precision_at_high": 0.2842317670798501,
+      "recall_at_high": 0.5496098104793757,
+      "precision_at_moderate": 0.18255578093306288,
+      "recall_at_moderate": 0.7023411371237458
+    },
+    "xgboost_at_threshold": {
+      "threshold": 0.4480000138282776,
+      "tn": 27284,
+      "fp": 1687,
+      "fn": 950,
+      "tp": 844,
+      "precision": 0.33346503358356383,
+      "recall": 0.47045707915273133,
+      "specificity": 0.941769355562459,
+      "f1": 0.3902890173410405,
+      "balanced_accuracy": 0.7061132173575951
+    },
+    "by_disease": {
+      "covid19": {
+        "n": 16779,
+        "positives": 1221,
+        "prevalence": 0.07276953334525299,
+        "roc_auc": 0.8880757313075093,
+        "pr_auc": 0.42752842537940466,
+        "capture_top_10pct": 0.552006552006552,
+        "precision_top_10pct": 0.40166865315852207,
+        "brier": 0.0779963985609195,
+        "precision_at_critical": 0.4187799862919808,
+        "recall_at_critical": 0.5004095004095004,
+        "precision_at_high": 0.27756542193472505,
+        "recall_at_high": 0.7731367731367731,
+        "precision_at_moderate": 0.17298362644026682,
+        "recall_at_moderate": 0.9344799344799345
+      },
+      "dengue": {
+        "n": 2930,
+        "positives": 222,
+        "prevalence": 0.0757679180887372,
+        "roc_auc": 0.897950017964789,
+        "pr_auc": 0.4624079947707094,
+        "capture_top_10pct": 0.5675675675675675,
+        "precision_top_10pct": 0.4300341296928328,
+        "brier": 0.05593364486807116,
+        "precision_at_critical": 0.8,
+        "recall_at_critical": 0.018018018018018018,
+        "precision_at_high": 0.6727272727272727,
+        "recall_at_high": 0.16666666666666666,
+        "precision_at_moderate": 0.4954954954954955,
+        "recall_at_moderate": 0.4954954954954955
+      },
+      "mpox": {
+        "n": 11056,
+        "positives": 351,
+        "prevalence": 0.031747467438494936,
+        "roc_auc": 0.8180270954675438,
+        "pr_auc": 0.0970914737362855,
+        "capture_top_10pct": 0.31054131054131057,
+        "precision_top_10pct": 0.09855334538878843,
+        "brier": 0.030415656189663038,
+        "precision_at_critical": 0.0,
+        "recall_at_critical": 0.0,
+        "precision_at_high": 0.38461538461538464,
+        "recall_at_high": 0.014245014245014245,
+        "precision_at_moderate": 0.10714285714285714,
+        "recall_at_moderate": 0.02564102564102564
+      }
+    },
+    "baseline_persistence": {
+      "n": 30765,
+      "positives": 1794,
+      "prevalence": 0.0583130180399805,
+      "roc_auc": 0.6963632990619497,
+      "pr_auc": 0.1305383558300987,
+      "capture_top_10pct": 0.28929765886287623,
+      "precision_top_10pct": 0.16872561768530558
+    },
+    "baseline_logistic_regression": {
+      "n": 30765,
+      "positives": 1794,
+      "prevalence": 0.0583130180399805,
+      "roc_auc": 0.7452329891110501,
+      "pr_auc": 0.2511099436382076,
+      "capture_top_10pct": 0.4492753623188406,
+      "precision_top_10pct": 0.26202860858257476,
+      "brier": 0.06325854106588905,
+      "precision_at_critical": 0.4442916093535076,
+      "recall_at_critical": 0.18004459308807136,
+      "precision_at_high": 0.2512416009348525,
+      "recall_at_high": 0.4793756967670011,
+      "precision_at_moderate": 0.12639687533904742,
+      "recall_at_moderate": 0.649386845039019
+    },
+    "logistic_regression_at_threshold": {
+      "threshold": 0.379,
+      "tn": 26838,
+      "fp": 2133,
+      "fn": 1006,
+      "tp": 788,
+      "precision": 0.2697706264977747,
+      "recall": 0.43924191750278707,
+      "specificity": 0.9263746505125815,
+      "f1": 0.33425238600212087,
+      "balanced_accuracy": 0.6828082840076843
+    },
+    "rolling_origin": [
+      {
+        "test_year": 2021,
+        "train_rows": 19447,
+        "n": 13116,
+        "positives": 2531,
+        "roc_auc": 0.871170242885247,
+        "pr_auc": 0.6242883078548757
+      },
+      {
+        "test_year": 2022,
+        "train_rows": 32424,
+        "n": 14368,
+        "positives": 1931,
+        "roc_auc": 0.8605760188262358,
+        "pr_auc": 0.5378799465390546
+      },
+      {
+        "test_year": 2023,
+        "train_rows": 46621,
+        "n": 13684,
+        "positives": 991,
+        "roc_auc": 0.8168951112283457,
+        "pr_auc": 0.30670246119999456
+      },
+      {
+        "test_year": 2024,
+        "train_rows": 60704,
+        "n": 10836,
+        "positives": 553,
+        "roc_auc": 0.8940094775361782,
+        "pr_auc": 0.4308870770940504
+      },
+      {
+        "test_year": 2025,
+        "train_rows": 71889,
+        "n": 4338,
+        "positives": 197,
+        "roc_auc": 0.9239007719021252,
+        "pr_auc": 0.47415119741667416
+      }
+    ]
+  },
+  "coverage": {
+    "country_week_definition": "one disease, one country, one ISO week starting Monday (a 'country-disease-week')",
+    "case_report_rows": 119423,
+    "by_disease": {
+      "covid19": {
+        "case_report_rows": 81666,
+        "reported_weeks": 52735,
+        "unreported_weeks": 28931,
+        "countries": 234,
+        "first_week": "2019-12-30",
+        "last_week": "2026-08-31",
+        "panel_rows": 81666,
+        "feature_valid": 49735,
+        "label_valid": 46162
+      },
+      "dengue": {
+        "case_report_rows": 23238,
+        "reported_weeks": 23238,
+        "unreported_weeks": 0,
+        "countries": 84,
+        "first_week": "1998-01-12",
+        "last_week": "2024-12-23",
+        "panel_rows": 36126,
+        "feature_valid": 21214,
+        "label_valid": 19272
+      },
+      "mpox": {
+        "case_report_rows": 14519,
+        "reported_weeks": 14519,
+        "unreported_weeks": 0,
+        "countries": 126,
+        "first_week": "2022-05-02",
+        "last_week": "2025-02-10",
+        "panel_rows": 14519,
+        "feature_valid": 13644,
+        "label_valid": 13153
+      }
+    },
+    "requested_test_window": [
+      "2023-01-01",
+      "2026-08-31"
+    ],
+    "test_anchor_range": [
+      "2023-01-02",
+      "2026-08-03"
+    ],
+    "label_follow_up_until": "2026-09-06",
+    "anchors_in_window_with_features": 34054,
+    "anchors_in_window_evaluated": 30765,
+    "anchors_in_window_excluded": 3289,
+    "exclusion_reason": "fewer than 4 reported weeks of follow-up (end of data or reporting gaps); never labelled negative"
+  }
+}

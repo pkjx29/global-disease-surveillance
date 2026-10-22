@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 import requests
@@ -78,6 +81,34 @@ def path_for(key: str) -> Path:
     return RAW_DIR / SOURCES[key].filename
 
 
+def meta_path(key: str) -> Path:
+    """Sidecar file recording where and when a raw file came from."""
+    return path_for(key).with_name(path_for(key).name + ".meta.json")
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def write_meta(key: str) -> dict:
+    """Record URL, size, SHA-256 and retrieval time right after a download."""
+    path = path_for(key)
+    meta = {
+        "source": key,
+        "url": SOURCES[key].url,
+        "file": path.name,
+        "bytes": path.stat().st_size,
+        "sha256": file_sha256(path),
+        "retrieved_at": datetime.now(UTC).isoformat(timespec="seconds"),
+    }
+    meta_path(key).write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    return meta
+
+
 def download(key: str, *, force: bool = False, retries: int = 3) -> Path:
     """Fetch one source into data/raw (no-op when already cached)."""
     src = SOURCES[key]
@@ -95,6 +126,7 @@ def download(key: str, *, force: bool = False, retries: int = 3) -> Path:
                     for chunk in resp.iter_content(chunk_size=1 << 16):
                         fh.write(chunk)
             tmp.replace(dest)
+            write_meta(key)
             log.info("fetched  %s (%.1f MB)", dest.name, dest.stat().st_size / 1e6)
             return dest
         except requests.RequestException as exc:

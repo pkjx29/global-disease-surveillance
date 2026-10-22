@@ -13,6 +13,8 @@ from sqlalchemy.exc import OperationalError
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg2://localhost:5432/disease_surveillance_test")
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL      # must be set before the app modules are imported
+TEST_API_KEY = "test-key-for-unit-tests"
+os.environ["API_KEYS"] = TEST_API_KEY
 
 FIRST_WEEK = date(2024, 1, 1)                        # a Monday
 N_WEEKS = 12
@@ -95,5 +97,5 @@ def client(engine):
     db.get_engine.cache_clear()
     from app.main import create_app
 
-    with TestClient(create_app()) as test_client:
+    with TestClient(create_app(), headers={"X-API-Key": TEST_API_KEY}) as test_client:
         yield test_client
