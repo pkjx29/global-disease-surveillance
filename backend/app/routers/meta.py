@@ -75,7 +75,7 @@ def summary(disease: str, conn: Connection = Depends(get_conn)) -> dict:
                SELECT
                    coalesce(sum(new_cases)  FILTER (WHERE week_start = (SELECT week FROM latest)), 0) AS new_cases,
                    coalesce(sum(new_cases)  FILTER (WHERE week_start = (SELECT week FROM latest) - 7), 0) AS prev_cases,
-                   coalesce(sum(new_deaths) FILTER (WHERE week_start = (SELECT week FROM latest)), 0) AS new_deaths,
+                   sum(new_deaths) FILTER (WHERE week_start = (SELECT week FROM latest)) AS new_deaths,
                    count(*) FILTER (WHERE week_start = (SELECT week FROM latest) AND reported) AS countries_reporting
                FROM case_reports
                WHERE disease = :d AND week_start >= (SELECT week FROM latest) - 7

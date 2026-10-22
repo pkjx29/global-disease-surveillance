@@ -35,7 +35,11 @@ export function KpiRow({ week, previous, riskRows, alertsTotal }: Props) {
       <div className="card kpi">
         <div className="label">New deaths this week</div>
         <div className="value">{formatCount(week?.new_deaths)}</div>
-        {week && <Delta current={week.new_deaths} previous={previous?.new_deaths} />}
+        {week && week.new_deaths !== null ? (
+          <Delta current={week.new_deaths} previous={previous?.new_deaths ?? undefined} />
+        ) : (
+          <div className="delta">not reported by this source</div>
+        )}
       </div>
       <div className="card kpi">
         <div className="label">Countries reporting cases</div>

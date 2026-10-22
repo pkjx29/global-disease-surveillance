@@ -69,6 +69,7 @@ def test_dengue_keeps_weekly_records_only(tmp_path):
     # epi week starting Sunday 1 Jan 2023 maps to the ISO week of Monday 2 Jan
     assert df["week_start"].tolist() == [date(2023, 1, 2), date(2023, 1, 9)]
     assert df["new_cases"].tolist() == [100, 150]
+    assert df["new_deaths"].isna().all()                # no deaths in the source: missing, not zero
 
 
 def test_gho_annual_parses_display_values(tmp_path):

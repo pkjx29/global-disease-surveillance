@@ -53,7 +53,7 @@ def country_profile(iso3: str, conn: Connection = Depends(get_conn)) -> dict:
                d.code AS disease,
                max(r.week_start) FILTER (WHERE r.reported) AS last_week,
                coalesce(sum(r.new_cases), 0)  AS total_cases,
-               coalesce(sum(r.new_deaths), 0) AS total_deaths,
+               sum(r.new_deaths) AS total_deaths,
                coalesce(sum(r.new_cases) FILTER (WHERE r.week_start > d.last_week - 28), 0) AS cases_last_4w,
                s.risk_probability,
                s.risk_level

@@ -62,7 +62,8 @@ def daily_events(week: pd.DataFrame, rng: np.random.Generator) -> list[dict]:
     events = []
     for row in week.itertuples(index=False):
         cases = rng.multinomial(int(row.new_cases), [1 / 7] * 7)
-        deaths = rng.multinomial(int(row.new_deaths), [1 / 7] * 7)
+        # sources without deaths (dengue) send 0: the stream job only uses cases, and its tables need a number
+        deaths = rng.multinomial(0 if pd.isna(row.new_deaths) else int(row.new_deaths), [1 / 7] * 7)
         for day in range(7):
             if cases[day] == 0 and deaths[day] == 0:
                 continue

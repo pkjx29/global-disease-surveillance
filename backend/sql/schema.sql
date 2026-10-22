@@ -42,10 +42,12 @@ CREATE TABLE IF NOT EXISTS case_reports (
     iso3        char(3) NOT NULL REFERENCES countries (iso3),
     week_start  date    NOT NULL,
     new_cases   integer NOT NULL DEFAULT 0 CHECK (new_cases >= 0),
-    new_deaths  integer NOT NULL DEFAULT 0 CHECK (new_deaths >= 0),
+    new_deaths  integer CHECK (new_deaths >= 0),           -- NULL: the source does not report deaths
     reported    boolean NOT NULL DEFAULT true,     -- false = the source had no figure for this week
     PRIMARY KEY (disease, iso3, week_start)
 );
+-- databases created before deaths could be missing
+ALTER TABLE case_reports ALTER COLUMN new_deaths DROP NOT NULL, ALTER COLUMN new_deaths DROP DEFAULT;
 CREATE INDEX IF NOT EXISTS case_reports_week_idx ON case_reports (disease, week_start);
 CREATE INDEX IF NOT EXISTS case_reports_country_idx ON case_reports (iso3, disease, week_start);
 

@@ -35,18 +35,18 @@ class Summary(BaseModel):
     new_cases: int
     new_cases_previous_week: int
     change_pct: float | None
-    new_deaths: int
+    new_deaths: int | None              # None: the source does not report deaths
     countries_reporting: int
     countries_high_risk: int
     risk_week: date | None
     total_cases: int
-    total_deaths: int
+    total_deaths: int | None
 
 
 class GlobalWeek(BaseModel):
     week_start: date
     new_cases: int
-    new_deaths: int
+    new_deaths: int | None              # None: the source does not report deaths
     countries_reporting: int
 
 
@@ -54,7 +54,7 @@ class MapRow(BaseModel):
     iso3: str
     country: str
     new_cases: int
-    new_deaths: int
+    new_deaths: int | None              # None: the source does not report deaths
     cases_4w: int
     incidence_4w: float | None
     growth_4w: float | None
@@ -71,7 +71,7 @@ class MapResponse(BaseModel):
 class SeriesPoint(BaseModel):
     week_start: date
     new_cases: int
-    new_deaths: int
+    new_deaths: int | None              # None: the source does not report deaths
     incidence_per_100k: float | None
     reported: bool
 
@@ -144,7 +144,7 @@ class CountryDiseaseStat(BaseModel):
     disease: str
     last_week: date | None
     total_cases: int
-    total_deaths: int
+    total_deaths: int | None
     cases_last_4w: int
     risk_probability: float | None
     risk_level: str | None

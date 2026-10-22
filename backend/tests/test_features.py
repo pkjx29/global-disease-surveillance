@@ -111,3 +111,11 @@ def test_fit_labels_never_reach_the_validation_weeks():
     gap = (val["week_start"].min() - fit["week_start"].max()).days // 7
     assert gap > HORIZON_WEEKS                        # last fit label window ends before validation starts
     assert len(val) == VALIDATION_WEEKS
+
+
+def test_missing_deaths_stay_missing_in_features():
+    cases = make_cases({"AAA": [200] * 40, "BBB": [100] * 40}, disease="dengue")
+    cases["new_deaths"] = np.nan                        # dengue: the source reports no deaths
+    panel = build_panel(cases, COUNTRIES, NEIGHBOURS)
+    assert panel["cfr_8w"].isna().all()                 # unknown, not a fatality ratio of 0
+    assert panel["log_cases"].notna().all()

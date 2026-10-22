@@ -6,7 +6,7 @@ import { DataTable } from './DataTable'
 export interface WeekPoint {
   week_start: string
   new_cases: number
-  new_deaths: number
+  new_deaths: number | null
 }
 
 interface TipProps {
@@ -75,7 +75,7 @@ interface Props {
 
 /** Weekly cases and deaths as two small charts on separate axes, plus the model's risk history. */
 export function SeriesPanel({ title, series, risk, week }: Props) {
-  const hasDeaths = series.some((p) => p.new_deaths > 0)
+  const hasDeaths = series.some((p) => (p.new_deaths ?? 0) > 0)
   return (
     <>
       <div className="chart-title">Weekly new cases</div>

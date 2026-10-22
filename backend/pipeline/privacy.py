@@ -94,8 +94,9 @@ def release_case_counts(
         rng = np.random.default_rng(seed)
         noise = rng.laplace(0.0, scale, size=shape) if mechanism == "laplace" else rng.normal(0.0, scale, size=shape)
 
-    true_counts = out.loc[reported, COUNT_COLUMNS].to_numpy(dtype=float)
-    noisy = np.clip(np.round(true_counts + noise), 0, None)       # post-processing: free
-    out[COUNT_COLUMNS] = out[COUNT_COLUMNS].astype("int64")
-    out.loc[reported, COUNT_COLUMNS] = noisy.astype("int64")
+    out[COUNT_COLUMNS] = out[COUNT_COLUMNS].astype(float)
+    true_counts = out.loc[reported, COUNT_COLUMNS].to_numpy()
+    out.loc[reported, COUNT_COLUMNS] = np.clip(np.round(true_counts + noise), 0, None)    # post-processing: free
+    for col in COUNT_COLUMNS:                   # a count the source never reported (NaN) stays missing
+        out[col] = out[col].astype("int64") if out[col].notna().all() else out[col]
     return out

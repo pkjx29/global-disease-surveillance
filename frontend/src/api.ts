@@ -32,7 +32,7 @@ export interface Disease {
 export interface GlobalWeek {
   week_start: string
   new_cases: number
-  new_deaths: number
+  new_deaths: number | null // null: the source does not report deaths
   countries_reporting: number
 }
 
@@ -40,7 +40,7 @@ export interface MapRow {
   iso3: string
   country: string
   new_cases: number
-  new_deaths: number
+  new_deaths: number | null // null: the source does not report deaths
   cases_4w: number
   incidence_4w: number | null
   growth_4w: number | null
@@ -57,7 +57,7 @@ export interface MapResponse {
 export interface SeriesPoint {
   week_start: string
   new_cases: number
-  new_deaths: number
+  new_deaths: number | null // null: the source does not report deaths
   incidence_per_100k: number | null
   reported: boolean
 }

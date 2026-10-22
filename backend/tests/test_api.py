@@ -108,3 +108,22 @@ def test_openapi_documents_every_router(client):
     paths = client.get(f"{API}/openapi.json").json()["paths"]
     for path in ("/health", "/cases/map", "/risk/scores", "/alerts/stream", "/geo/countries"):
         assert f"{API}{path}" in paths
+
+
+def test_missing_deaths_are_returned_as_null(client, engine):
+    from datetime import timedelta
+
+    from sqlalchemy import text
+
+    week = FIRST_WEEK - timedelta(weeks=1)
+    with engine.begin() as conn:
+        conn.execute(
+            text("INSERT INTO case_reports (disease, iso3, week_start, new_cases, new_deaths, reported) VALUES ('testpox', 'CCC', :w, 3, NULL, true)"),
+            {"w": week},
+        )
+    try:
+        (row,) = client.get(f"{API}/cases/timeseries", params={"disease": "testpox", "iso3": "CCC"}).json()
+        assert row["new_cases"] == 3 and row["new_deaths"] is None
+    finally:
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM case_reports WHERE iso3 = 'CCC'"))

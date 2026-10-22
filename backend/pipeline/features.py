@@ -56,7 +56,9 @@ def _complete_weeks(cases: pd.DataFrame) -> pd.DataFrame:
         full = pd.date_range(grp.index.min(), grp.index.max(), freq="7D")
         grp = grp.reindex(full)
         grp["reported"] = grp["reported"].fillna(False).astype(bool)
-        grp[["new_cases", "new_deaths"]] = grp[["new_cases", "new_deaths"]].fillna(0)
+        grp["new_cases"] = grp["new_cases"].fillna(0)
+        if grp["new_deaths"].notna().any():                 # a source without deaths keeps them missing
+            grp["new_deaths"] = grp["new_deaths"].fillna(0)
         grp["disease"], grp["iso3"] = disease, iso3
         frames.append(grp.rename_axis("week_start").reset_index())
     return pd.concat(frames, ignore_index=True)
