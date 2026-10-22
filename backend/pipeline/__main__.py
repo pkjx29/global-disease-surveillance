@@ -1,4 +1,4 @@
-"""Pipeline CLI: ``python -m pipeline etl | train | all | dp-eval | dp-release``."""
+"""Pipeline CLI: ``python -m pipeline etl | train | all | report | dp-eval | dp-release``."""
 
 from __future__ import annotations
 
@@ -16,8 +16,11 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="pipeline", description="Disease surveillance data pipeline")
     parser.add_argument(
         "step",
-        choices=["etl", "train", "all", "dp-eval", "dp-release"],
-        help="etl = download + load, train = fit XGBoost + score, dp-eval = model accuracy at several epsilons, dp-release = write a DP copy of the counts",
+        choices=["etl", "train", "all", "report", "dp-eval", "dp-release"],
+        help=(
+            "etl = download + load, train = fit XGBoost + score, report = evaluation report without database writes, "
+            "dp-eval = model accuracy at several epsilons, dp-release = write a DP copy of the counts"
+        ),
     )
     parser.add_argument("--force", action="store_true", help="re-download sources even if cached")
     parser.add_argument("--epsilon", type=float, default=1.0, help="privacy budget for dp-release")
@@ -35,6 +38,10 @@ def main(argv: list[str] | None = None) -> None:
         from . import model
 
         model.run()
+    if args.step == "report":
+        from . import report
+
+        report.run()
     if args.step == "dp-eval":
         from . import dp_eval
 

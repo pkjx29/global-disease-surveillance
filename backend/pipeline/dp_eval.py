@@ -28,7 +28,7 @@ import pandas as pd
 from . import load
 from .dp_release import PRIVACY_UNIT
 from .features import FEATURES, build_panel
-from .model import classification_metrics, fit_xgb, read_inputs
+from .model import classification_metrics, fit_xgb, read_inputs, split_by_time
 from .privacy import L1_SENSITIVITY, release_case_counts
 from .settings import BACKEND_ROOT, HORIZON_WEEKS, TRAIN_END
 
@@ -38,15 +38,6 @@ EPSILONS = [0.1, 0.25, 0.5, 1.0, 2.0, 4.0]
 SEEDS = [0, 1, 2]
 KEY = ["disease", "iso3", "week_start"]
 OUT_DIR = BACKEND_ROOT.parent / "docs" / "dp"
-
-
-def split(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Same out-of-time split as ``model.run``: train up to TRAIN_END, test after it."""
-    train_end = pd.Timestamp(TRAIN_END)
-    labelled = panel[panel["label_valid"]]
-    train = labelled[labelled["week_start"] <= train_end - pd.Timedelta(weeks=HORIZON_WEEKS)]
-    test = labelled[labelled["week_start"] > train_end]
-    return train, test
 
 
 def scores(test: pd.DataFrame, true_label: pd.Series, proba: np.ndarray) -> dict:
@@ -80,7 +71,7 @@ def run(engine=None, epsilons: list[float] = EPSILONS, seeds: list[int] = SEEDS,
     cases["week_start"] = pd.to_datetime(cases["week_start"])
 
     # non-private baseline: exactly what model.run trains
-    train, test = split(build_panel(cases, countries, neighbours))
+    train, test = split_by_time(build_panel(cases, countries, neighbours))
     baseline_model = fit_xgb(train)
     truth = test[KEY + ["label"]]
     rows = [{"epsilon": np.inf, "seed": None, "mode": "baseline", **scores(test, test["label"], baseline_model.predict_proba(test[FEATURES])[:, 1])}]
@@ -92,7 +83,7 @@ def run(engine=None, epsilons: list[float] = EPSILONS, seeds: list[int] = SEEDS,
             noisy_cases = release_case_counts(cases, epsilon, seed=seed)
             if seed == seeds[0]:
                 errors[str(epsilon)] = count_error(cases, noisy_cases)
-            noisy_train, noisy_test = split(build_panel(noisy_cases, countries, neighbours))
+            noisy_train, noisy_test = split_by_time(build_panel(noisy_cases, countries, neighbours))
             # the validity flags depend only on the reported flag, so the rows match the baseline
             noisy_test = noisy_test.merge(truth.rename(columns={"label": "true_label"}), on=KEY, how="inner", validate="one_to_one")
             assert len(noisy_test) == len(test)
