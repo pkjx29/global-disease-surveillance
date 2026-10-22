@@ -1,4 +1,4 @@
-"""Pipeline CLI: ``python -m pipeline etl | train | all | report | dp-eval | dp-release``."""
+"""Pipeline CLI: ``python -m pipeline etl | train | all | report | manifest | dp-eval | dp-release``."""
 
 from __future__ import annotations
 
@@ -16,9 +16,10 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="pipeline", description="Disease surveillance data pipeline")
     parser.add_argument(
         "step",
-        choices=["etl", "train", "all", "report", "dp-eval", "dp-release"],
+        choices=["etl", "train", "all", "report", "manifest", "dp-eval", "dp-release"],
         help=(
             "etl = download + load, train = fit XGBoost + score, report = evaluation report without database writes, "
+            "manifest = source catalogue with file checksums, "
             "dp-eval = model accuracy at several epsilons, dp-release = write a DP copy of the counts"
         ),
     )
@@ -38,6 +39,10 @@ def main(argv: list[str] | None = None) -> None:
         from . import model
 
         model.run()
+    if args.step == "manifest":
+        from . import manifest
+
+        manifest.run()
     if args.step == "report":
         from . import report
 
