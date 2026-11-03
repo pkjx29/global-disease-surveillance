@@ -13,7 +13,7 @@ output inspected; anything else is marked as not run. Updated 3 November 2026.
 | Leakage | Look-ahead test on features; purge test on the fit/validation split | `pytest` |
 | DP | Laplace and Gaussian release, sensitivity 2 per case, secure randomness for real releases, budget ledger (`dp_release_runs`) | `pytest` (empirical ε check, ledger refusal); `python -m pipeline dp-eval` |
 | API | API keys (probes open), per-key rate limit, key added by nginx server-side | `pytest` (401/429/Retry-After) |
-| CI | pip-audit on `requirements.txt`; Trivy on both images, pinned to a commit | Passing on `main` since PR #1 (the dashboard base image was bumped to `nginx-unprivileged:1.30-alpine` after the first scan) |
+| CI | pip-audit on `requirements.txt`; Trivy on both images, pinned to a commit | Passing on `main` since PR #1. The dashboard image runs `apk upgrade` at build time, because Alpine fixes (e.g. brotli, curl, libexpat in November 2026) arrive before the base image is rebuilt |
 | AKS | `deploy.sh` defaults to `plan` (no login, nothing created); `apply` needed to create resources | `plan` run locally; `apply` never run |
 
 ## Open, in priority order
