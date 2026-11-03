@@ -7,7 +7,7 @@ same cell by 1. So:
 
 * sensitivity of the whole table = 2 in L1 norm (1 for cases + 1 for deaths), and also
   sqrt(1^2 + 1^2) = sqrt(2) in L2 norm;
-* every cell holds different people, so the noise added to all ~119,000 cells together
+* every cell holds different people, so the noise added to all ~90,000 reported cells together
   costs epsilon once, not once per cell (parallel composition).
 
 Rounding the noisy numbers and clipping them at zero happen after the noise, so they use

@@ -7,8 +7,8 @@
     "content": "COVID-19 cases and deaths",
     "resolution": "weekly, national",
     "used_in": "case_reports (disease = covid19)",
-    "rows_in_database": 81666,
-    "rows_reported_or_with_geometry": 52735,
+    "rows_in_database": 82368,
+    "rows_reported_or_with_geometry": 52947,
     "file": {
       "source": "covid19",
       "url": "https://srhdpeuwpubsa.blob.core.windows.net/whdh/COVID/WHO-COVID-19-global-data.csv",
@@ -66,7 +66,14 @@
     "used_in": "annual_indicators (cholera_cases); not used by the model",
     "rows_in_database": 2465,
     "rows_reported_or_with_geometry": 2465,
-    "file": null
+    "file": {
+      "source": "cholera_cases",
+      "url": "https://ghoapi.azureedge.net/api/CHOLERA_0000000001",
+      "file": "gho_cholera_cases.json",
+      "bytes": 1373000,
+      "sha256": "f97d472cb1a55b92ee52a1f6d3fda9381b130df0a2389d201ac20db86038ae4e",
+      "retrieved_at": "2026-10-22T16:50:17+00:00"
+    }
   },
   {
     "key": "measles_cases",
@@ -78,7 +85,14 @@
     "used_in": "annual_indicators (measles_cases); not used by the model",
     "rows_in_database": 9419,
     "rows_reported_or_with_geometry": 9419,
-    "file": null
+    "file": {
+      "source": "measles_cases",
+      "url": "https://ghoapi.azureedge.net/api/WHS3_62",
+      "file": "gho_measles_cases.json",
+      "bytes": 6120043,
+      "sha256": "9927ba83a9ef7d259b1d637b256f9307318281318bbfc4ad471d22f59b114241",
+      "retrieved_at": "2026-10-22T16:50:23+00:00"
+    }
   },
   {
     "key": "countries",
@@ -90,6 +104,13 @@
     "used_in": "countries, country_neighbours",
     "rows_in_database": 246,
     "rows_reported_or_with_geometry": 238,
-    "file": null
+    "file": {
+      "source": "countries",
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson",
+      "file": "ne_50m_admin_0_countries.geojson",
+      "bytes": 3083490,
+      "sha256": "3e458fc036ad0a66411f2c1e6cac49c5d7bfb81cb1123bc513b22511a2b7fdeb",
+      "retrieved_at": "2026-10-22T16:50:27+00:00"
+    }
   }
 ]
