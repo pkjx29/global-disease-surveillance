@@ -12,6 +12,8 @@ Why the platform is built the way it is. Each section is a decision and the reas
   weeks reported. Otherwise a reporting gap would look like a collapse and the next report like a surge.
 - **Duplicates are not added.** When OpenDengue has two weekly records for the same country-week,
   the larger is kept. Adding them would double count overlapping reports.
+- **Not reported is not zero, for deaths too.** OpenDengue has no deaths, so dengue `new_deaths` is
+  NULL, the API returns `null` and the fatality-ratio feature is missing for dengue rather than 0.
 - **Sources change.** The WHO file is revised after publication, so every download records its
   SHA-256 and retrieval time, and every report records a hash of the database contents it used.
 
@@ -25,6 +27,8 @@ Why the platform is built the way it is. Each section is a decision and the reas
 - **Purges.** A training row at week t has a label that reads weeks t+1 to t+4. So training anchors end
   four weeks before the test period, and the early-stopping fit ends four weeks before the validation
   weeks. Without that, the labels would contain information from the period being evaluated.
+- **Test window.** Test anchors run from January 2023 to `TEST_END` (31 August 2026). Weeks after it
+  only provide the outcomes of the last anchors, so new data cannot stretch the reported period.
 - **Test set used once.** Tree count (early stopping) and decision threshold come from the
   validation weeks. The test set only produces the reported numbers.
 - **Metrics.** Outbreaks are 5.8% of test rows, so accuracy is meaningless (always "no" gives 94%).
@@ -54,9 +58,9 @@ Why the platform is built the way it is. Each section is a decision and the reas
 - **What it does and does not mean.** The counts are already public, so this is a study of the cost
   of a release, not protection of these data. It protects case reports, not people reported twice
   (reinfections cost k·ε), and treats the shape of the table as public.
-- **Result.** Overall accuracy barely moves (ROC-AUC 0.82 → 0.80 at ε = 1) because COVID-19 and dengue
-  counts are large. Mpox, with a median of 5 cases in a non-zero week, falls from 0.82 to 0.67 and is
-  worse than random at ε ≤ 0.25.
+- **Result.** Overall accuracy barely moves (ROC-AUC 0.84 → 0.81 at ε = 1) because COVID-19 and dengue
+  counts are large. Mpox, with a median of 5 cases in a non-zero week, falls from 0.83 to 0.68 and is
+  no better than random at ε ≤ 0.25.
 
 ## API security
 

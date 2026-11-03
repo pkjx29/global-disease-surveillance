@@ -130,3 +130,11 @@ def test_release_over_budget_is_refused_before_writing(ledger, tmp_path):
         dp_release.release(ledger, 0.5, tmp_path / "second.csv", total_epsilon=1.0)    # 0.75 + 0.5 > 1
     assert not (tmp_path / "second.csv").exists()
     assert dp_release.budget_spent(ledger) == (0.75, 0.0)
+
+
+def test_missing_deaths_stay_missing_in_a_release():
+    cases = make_cases(1_000)
+    cases["new_deaths"] = np.nan
+    noisy = release_case_counts(cases, 1.0, seed=5)
+    assert noisy["new_deaths"].isna().all()
+    assert noisy["new_cases"].dtype == "int64"

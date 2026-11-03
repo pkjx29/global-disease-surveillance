@@ -19,7 +19,7 @@ from sqlalchemy.engine import Engine
 
 from . import load
 from .features import FEATURE_LABELS, FEATURES, build_panel
-from .settings import HORIZON_WEEKS, MODEL_DIR, RISK_LEVELS, SURGE_RATIO, TRAIN_END
+from .settings import HORIZON_WEEKS, MODEL_DIR, RISK_LEVELS, SURGE_RATIO, TEST_END, TRAIN_END
 
 log = logging.getLogger(__name__)
 
@@ -115,11 +115,14 @@ def threshold_metrics(y: np.ndarray, score: np.ndarray, threshold: float) -> dic
 
 
 def split_by_time(panel: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Train on anchors whose 4-week outcome ends by TRAIN_END; test on anchors after it."""
+    """Train on anchors whose 4-week outcome ends by TRAIN_END; test on anchors from then to TEST_END.
+
+    Weeks after TEST_END are only used as outcomes of the last test anchors, never as anchors.
+    """
     train_end = pd.Timestamp(TRAIN_END)
     labelled = panel[panel["label_valid"]]
     train = labelled[labelled["week_start"] <= train_end - pd.Timedelta(weeks=HORIZON_WEEKS)]
-    test = labelled[labelled["week_start"] > train_end]
+    test = labelled[(labelled["week_start"] > train_end) & (labelled["week_start"] <= pd.Timestamp(TEST_END))]
     return train, test
 
 

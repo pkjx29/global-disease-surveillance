@@ -18,6 +18,7 @@ SCHEMA_FILE = BACKEND_ROOT / "sql" / "schema.sql"
 HORIZON_WEEKS = 4                 # predict a surge over the next four weeks
 SURGE_RATIO = 2.0                 # ... defined as cases at least doubling
 TRAIN_END = os.environ.get("TRAIN_END", "2022-12-31")     # everything after this date is held out
+TEST_END = os.environ.get("TEST_END", "2026-08-31")       # last test anchor week; later weeks only supply outcomes
 
 # Minimum size of the following 4 weeks for a doubling to count as an outbreak
 # (stops "1 case -> 2 cases" from being labelled a surge).

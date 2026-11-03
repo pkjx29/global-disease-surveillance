@@ -7,7 +7,7 @@ same cell by 1. So:
 
 * sensitivity of the whole table = 2 in L1 norm (1 for cases + 1 for deaths), and also
   sqrt(1^2 + 1^2) = sqrt(2) in L2 norm;
-* every cell holds different people, so the noise added to all ~119,000 cells together
+* every cell holds different people, so the noise added to all ~90,000 reported cells together
   costs epsilon once, not once per cell (parallel composition).
 
 Rounding the noisy numbers and clipping them at zero happen after the noise, so they use
@@ -94,8 +94,9 @@ def release_case_counts(
         rng = np.random.default_rng(seed)
         noise = rng.laplace(0.0, scale, size=shape) if mechanism == "laplace" else rng.normal(0.0, scale, size=shape)
 
-    true_counts = out.loc[reported, COUNT_COLUMNS].to_numpy(dtype=float)
-    noisy = np.clip(np.round(true_counts + noise), 0, None)       # post-processing: free
-    out[COUNT_COLUMNS] = out[COUNT_COLUMNS].astype("int64")
-    out.loc[reported, COUNT_COLUMNS] = noisy.astype("int64")
+    out[COUNT_COLUMNS] = out[COUNT_COLUMNS].astype(float)
+    true_counts = out.loc[reported, COUNT_COLUMNS].to_numpy()
+    out.loc[reported, COUNT_COLUMNS] = np.clip(np.round(true_counts + noise), 0, None)    # post-processing: free
+    for col in COUNT_COLUMNS:                   # a count the source never reported (NaN) stays missing
+        out[col] = out[col].astype("int64") if out[col].notna().all() else out[col]
     return out

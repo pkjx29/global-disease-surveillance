@@ -49,11 +49,15 @@ def week_monday(dates: pd.Series) -> pd.Series:
     return (dates - pd.to_timedelta(dates.dt.weekday, unit="D")).dt.normalize()
 
 
-def _finish(df: pd.DataFrame, disease: str) -> pd.DataFrame:
+def _finish(df: pd.DataFrame, disease: str, has_deaths: bool = True) -> pd.DataFrame:
+    """Common clean-up. ``has_deaths = False``: the source reports no deaths, so they stay missing (NULL), not 0."""
     df = df.dropna(subset=["iso3", "week_start"]).copy()
     df["disease"] = disease
     df["new_cases"] = df["new_cases"].fillna(0).clip(lower=0).round().astype(int)
-    df["new_deaths"] = df["new_deaths"].fillna(0).clip(lower=0).round().astype(int)
+    if has_deaths:
+        df["new_deaths"] = df["new_deaths"].fillna(0).clip(lower=0).round().astype(int)
+    else:
+        df["new_deaths"] = pd.array([pd.NA] * len(df), dtype="Int64")
     df["reported"] = df["reported"].astype(bool)
     df["week_start"] = pd.to_datetime(df["week_start"]).dt.date
     return df[COLUMNS].sort_values(["iso3", "week_start"]).reset_index(drop=True)
@@ -104,9 +108,8 @@ def dengue(path: str | Path) -> pd.DataFrame:
     # epidemiological weeks run Sunday-Saturday; assign each to the ISO week holding its midpoint
     raw["week_start"] = week_monday(pd.to_datetime(raw["calendar_start_date"]) + pd.Timedelta(days=3))
     df = raw.groupby(["ISO_A0", "week_start"], as_index=False).agg(new_cases=("dengue_total", "max")).rename(columns={"ISO_A0": "iso3"})
-    df["new_deaths"] = 0                                    # the extract carries case counts only
     df["reported"] = True
-    return _finish(df, "dengue")
+    return _finish(df, "dengue", has_deaths=False)          # the extract carries case counts only
 
 
 def gho_annual(path: str | Path, indicator: str) -> pd.DataFrame:

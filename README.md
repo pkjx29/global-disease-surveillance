@@ -15,7 +15,7 @@ Kafka API (Redpanda) · Docker · Kubernetes · Azure
 
 | Capability | How |
 |---|---|
-| **Integrates public data** | Weekly COVID-19 (WHO), mpox (WHO via Our World in Data) and dengue (OpenDengue) counts for 235 countries and territories, plus annual cholera and measles totals (WHO GHO). 119,423 disease-country-weeks, of which 90,492 were reported (the rest are weeks a country did not report, kept as gaps). |
+| **Integrates public data** | Weekly COVID-19 (WHO), mpox (WHO via Our World in Data) and dengue (OpenDengue) counts for 235 countries and territories, plus annual cholera and measles totals (WHO GHO). 120,125 disease-country-weeks, of which 90,704 were reported (the rest are weeks a country did not report, kept as gaps). |
 | **Geospatial layer** | GeoPandas builds the country reference table from Natural Earth: ISO codes, population, simplified map geometry and a neighbour graph used as model features. |
 | **REST API** | 16 FastAPI endpoints: time series, map snapshots, country profiles, risk scores, model card, alerts, and a Server-Sent Events stream. OpenAPI docs at `/api/v1/docs`. |
 | **Outbreak-risk model** | XGBoost estimates, for every country and week, the probability that cases at least double over the next four weeks. Each score comes with its main SHAP drivers. |
@@ -29,10 +29,10 @@ Kafka API (Redpanda) · Docker · Kubernetes · Azure
 
 | Capability | State |
 |---|---|
-| ETL, PostgreSQL, 16 endpoints, dashboard, XGBoost with leakage tests | Implemented and tested (55 backend tests) |
+| ETL, PostgreSQL, 16 endpoints, dashboard, XGBoost with leakage tests | Implemented and tested (59 backend tests) |
 | Provenance sidecars, source catalogue, evaluation report | Implemented and run on the local database |
 | DP release with budget ledger, accuracy cost per ε | Implemented and tested; an experiment on public aggregates |
-| API keys, rate limiting, pip-audit and Trivy in CI | Implemented and unit-tested; CI scans not yet run on GitHub |
+| API keys, rate limiting, pip-audit and Trivy in CI | Implemented, unit-tested and passing in CI |
 | Flink SQL anomaly job | Implemented; reconciled against batch totals in earlier local runs (not re-run in this update) |
 | Kubernetes | Tested on a local cluster; NetworkPolicy enforcement not tested |
 | AKS | Script with a dry-run `plan` mode; never applied to a subscription |
@@ -107,7 +107,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 python -m pipeline all                  # ETL + model training
 API_KEYS=dev-key uvicorn app.main:app --reload    # http://localhost:8000/api/v1/docs
-pytest                                  # 55 tests
+pytest                                  # 59 tests
 
 # frontend
 cd frontend
@@ -140,18 +140,19 @@ Details worth knowing:
 - Reporting trails off unevenly at the end of each series. The "latest week" shown for a
   disease is the last week in which at least half of the recent peak number of countries reported.
 
-- One row of `case_reports` is one disease, one country and one ISO week. Of the 119,423 rows,
-  90,492 are reported weeks; the other 28,931 are COVID-19 weeks a country skipped. Row counts at
+- One row of `case_reports` is one disease, one country and one ISO week. Of the 120,125 rows,
+  90,704 are reported weeks; the other 29,421 are COVID-19 weeks a country skipped. Row counts at
   each stage (reported, with features, labelled) are in `docs/model/model_report.md`.
 - OpenDengue sometimes has more than one weekly record for a country-week; the largest is kept,
-  never the sum. Its extract has no deaths, which are stored as 0 (see `PLAN.md`).
+  never the sum. Its extract has no deaths, so dengue deaths are stored as NULL ("not
+  reported"), returned as `null` by the API and shown as "–" on the dashboard, never as zero.
 
 **Provenance.** Every download writes a sidecar file with the URL, size, SHA-256 and retrieval
 time. `python -m pipeline manifest` turns these, together with the rows each source contributed,
 into [`docs/data/sources.md`](docs/data/sources.md). Sources are revised: a fresh download of the
 WHO COVID-19 file on 22 October 2026 had 702 more country-weeks and 250 revised counts than the
-copy the database was loaded from (the mpox and dengue files were identical). Reports therefore
-record a hash of the database contents they were computed from.
+previous copy, so the database was reloaded from it and every result below was regenerated.
+Reports record a hash of the database contents they were computed from.
 
 The schema is in `backend/sql/schema.sql`: `countries`, `country_neighbours`, `diseases`,
 `case_reports`, `annual_indicators`, `model_runs`, `risk_scores`, `stream_weekly_counts`,
@@ -173,27 +174,27 @@ future values and asserts that earlier feature rows stay identical.
 **Out-of-time validation.** The model is trained on anchor weeks whose four-week outcome ends
 by 31 December 2022. Early stopping and the decision threshold use the last 26 of those weeks,
 and the fit stops four weeks before them, so no training label looks into the validation weeks.
-The test set is the 30,765 anchor weeks from 2 January 2023 to 3 August 2026, with outcomes
-followed up to 6 September 2026. Another 3,289 anchor rows in that window have features but no
-complete four-week outcome (the last weeks of data, or reporting gaps); they are excluded, never
-counted as negative.
+The test set is the 30,969 anchor weeks from 2 January 2023 to 24 August 2026 (anchors stop at
+31 August 2026; later weeks are used only as outcomes), with outcomes followed up to 27 September
+2026. Another 3,125 anchor rows in that window have features but no complete four-week outcome
+(reporting gaps, or the end of a series); they are excluded, never counted as negative.
 
 | Held-out performance | ROC-AUC | Average precision |
 |---|---|---|
-| **XGBoost** | **0.82** | **0.34** |
+| **XGBoost** | **0.84** | **0.36** |
 | Logistic regression (same features) | 0.75 | 0.25 |
 | Growth-rate rule (rank by 4-week growth) | 0.70 | 0.13 |
-| Base rate | – | 0.058 |
+| Base rate | – | 0.059 |
 
-The 10% of country-weeks with the highest scores contain 52% of all outbreaks. At the threshold
-chosen on the validation weeks (0.45), XGBoost has precision 0.33, recall 0.47, specificity 0.94
-and F1 0.39 on the test set; logistic regression at its own threshold has F1 0.33.
+The 10% of country-weeks with the highest scores contain 53% of all outbreaks. At the threshold
+chosen on the validation weeks (0.44), XGBoost has precision 0.35, recall 0.49, specificity 0.94
+and F1 0.40 on the test set; logistic regression at its own threshold has F1 0.34.
 
 | By disease | Country-weeks | Outbreaks | ROC-AUC | Average precision |
 |---|---|---|---|---|
-| COVID-19 | 16,779 | 1,221 | 0.89 | 0.43 |
+| COVID-19 | 16,983 | 1,248 | 0.89 | 0.46 |
 | Dengue | 2,930 | 222 | 0.90 | 0.46 |
-| Mpox | 11,056 | 351 | 0.82 | 0.10 |
+| Mpox | 11,056 | 351 | 0.83 | 0.10 |
 
 Re-training before each year and testing on that year gives ROC-AUC between 0.82 and 0.92
 (2021 to 2025), so performance does not depend on one lucky split.
@@ -210,8 +211,9 @@ Honest caveats:
   the same as real surges.
 - Exact figures move by a point or two between platforms because of XGBoost's histogram
   construction. The numbers above are from an Apple M1 (`docs/model/model_report.md`).
-- The 0.82 and 0.75 ROC-AUC values were measured, not targets the model was tuned towards; the
-  test set was used only once the configuration was fixed.
+- The 0.84 and 0.75 ROC-AUC values were measured, not targets the model was tuned towards; the
+  test set was used only once the configuration was fixed. Before the data refresh of
+  22 October 2026 the same code gave 0.82 and 0.75.
 
 Scores are stored for every week after the training cut-off, together with what actually
 happened once known, so the dashboard shows a genuine back-test.
@@ -234,7 +236,7 @@ know who travelled, the published "1" can identify that person.
 - **Noise:** each reported cell gets Laplace noise with scale `2 / ε` added to both columns.
   At ε = 1 that is a standard deviation of about 2.8 cases.
 - **The whole table costs ε once.** Different cells hold different people, so the noise on
-  ~119,000 cells does not add up (parallel composition).
+  ~90,700 reported cells does not add up (parallel composition).
 - **Rounding to whole numbers and clipping at zero** happen after the noise and cost no extra
   privacy (post-processing).
 - **A budget ledger for repeated releases.** `python -m pipeline dp-release --epsilon 0.5`
@@ -256,33 +258,33 @@ The check passes at the correct noise and fails if the noise is halved.
 `python -m pipeline dp-eval` releases the counts at ε = 0.1, 0.25, 0.5, 1, 2 and 4 (three noise
 draws each), rebuilds the features, retrains XGBoost **only from the noisy release** (features,
 training labels and early stopping all come from it), and scores it against the *true* outbreaks
-on the same 30,765 test anchors (1,794 outbreaks, 351 of them mpox) as above. Each ε is a
+on the same 30,969 test anchors (1,821 outbreaks, 351 of them mpox) as above. Each ε is a
 separate hypothetical release, so the grid is not one combined budget. Results and the full
 experiment description (privacy unit, adjacency, sensitivity, split) are in `docs/dp/`.
 
 | ε | ROC-AUC (all) | Average precision (all) | Mpox ROC-AUC | Mpox average precision |
 |---|---|---|---|---|
-| no privacy | **0.82** | **0.34** | **0.82** | **0.10** |
-| 4 | 0.82 | 0.34 | 0.78 | 0.10 |
-| 2 | 0.82 | 0.34 | 0.75 | 0.09 |
-| 1 | 0.80 | 0.33 | 0.67 | 0.06 |
-| 0.5 | 0.78 | 0.32 | 0.57 | 0.05 |
-| 0.25 | 0.76 | 0.30 | 0.41 | 0.03 |
-| 0.1 | 0.72 | 0.29 | 0.36 | 0.02 |
+| no privacy | **0.84** | **0.36** | **0.83** | **0.10** |
+| 4 | 0.83 | 0.34 | 0.79 | 0.09 |
+| 2 | 0.83 | 0.34 | 0.76 | 0.08 |
+| 1 | 0.81 | 0.34 | 0.68 | 0.07 |
+| 0.5 | 0.80 | 0.33 | 0.60 | 0.05 |
+| 0.25 | 0.78 | 0.32 | 0.49 | 0.04 |
+| 0.1 | 0.73 | 0.29 | 0.36 | 0.03 |
 
-Mean of three noise seeds; standard deviations are at most 0.005 for the all-disease ROC-AUC and
-0.04 for mpox (`docs/dp/dp_summary.csv`). The mpox base rate is 0.03.
+Mean of three noise seeds; standard deviations are at most 0.006 for the all-disease ROC-AUC and
+0.05 for mpox (`docs/dp/dp_summary.csv`). The mpox base rate is 0.03.
 
 ![Model accuracy against epsilon](docs/dp/dp_accuracy.png)
 
 What this shows:
 
-- **Overall, privacy is cheap.** At ε = 1 the model loses about 0.03 ROC-AUC. Even at ε = 0.5
+- **Overall, privacy is cheap.** At ε = 1 the model loses about 0.02 ROC-AUC. Even at ε = 0.5
   it still beats the non-private logistic regression (0.75). COVID-19 and dengue counts are in
   the hundreds, so noise of a few cases hardly changes them.
-- **Mpox pays almost all of the cost.** Its ROC-AUC falls from 0.82 to 0.67 at ε = 1, and at
-  ε = 0.25 and below it is worse than random. Noise of ±20 cases buries weeks that really had 0 to 5
-  cases, and about 38% of true zero weeks are published as non-zero at ε = 1
+- **Mpox pays almost all of the cost.** Its ROC-AUC falls from 0.83 to 0.68 at ε = 1, and at
+  ε = 0.25 and below it is no better than random. Noise of ±20 cases buries weeks that really had 0 to 5
+  cases, and about 39% of true zero weeks are published as non-zero at ε = 1
   (`docs/dp/count_error.json`). The overall score hides this because mpox outbreaks are a
   small share of all outbreaks. The rare diseases that most need privacy are also the ones
   that lose the most usefulness.

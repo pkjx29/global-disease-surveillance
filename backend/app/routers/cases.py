@@ -69,7 +69,7 @@ def map_snapshot(
                SELECT
                    iso3,
                    coalesce(sum(new_cases)  FILTER (WHERE week_start = :w), 0)                               AS new_cases,
-                   coalesce(sum(new_deaths) FILTER (WHERE week_start = :w), 0)                               AS new_deaths,
+                   sum(new_deaths) FILTER (WHERE week_start = :w)                                            AS new_deaths,
                    coalesce(sum(new_cases)  FILTER (WHERE week_start > CAST(:w AS date) - 28), 0)            AS cases_4w,
                    coalesce(sum(new_cases)  FILTER (WHERE week_start <= CAST(:w AS date) - 28), 0)           AS prev_4w
                FROM case_reports

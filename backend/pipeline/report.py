@@ -22,12 +22,12 @@ import pandas as pd
 from . import load
 from .features import build_panel
 from .model import PARAMS, evaluate, read_inputs
-from .settings import BACKEND_ROOT, HORIZON_WEEKS
+from .settings import BACKEND_ROOT, HORIZON_WEEKS, TEST_END
 
 log = logging.getLogger(__name__)
 
 OUT_DIR = BACKEND_ROOT.parent / "docs" / "model"
-REQUESTED_TEST_WINDOW = ("2023-01-01", "2026-08-31")      # anchor weeks the project brief asks about
+REQUESTED_TEST_WINDOW = ("2023-01-01", TEST_END)          # anchor weeks the project brief asks about
 
 
 def dataset_hash(cases: pd.DataFrame) -> str:
@@ -149,7 +149,7 @@ def markdown(report: dict) -> str:
         f"Requested test window {cov['requested_test_window'][0]} to {cov['requested_test_window'][1]}: "
         f"{cov['anchors_in_window_with_features']:,} anchor rows have features, {cov['anchors_in_window_evaluated']:,} are evaluated and "
         f"{cov['anchors_in_window_excluded']:,} are excluded ({cov['exclusion_reason']}). The last evaluated anchor is "
-        f"{cov['test_anchor_range'][1]}; later August 2026 anchors have no complete four-week outcome yet.",
+        f"{cov['test_anchor_range'][1]}, with outcomes followed up to {cov['label_follow_up_until']}.",
         "",
     ]
     return "\n".join(lines)
